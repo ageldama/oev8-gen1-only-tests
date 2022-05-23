@@ -1,0 +1,35 @@
+[tool.poetry]
+name = "oev8-py"
+version = "0.1.0"
+description = ""
+authors = ["Jong-Hyouk Yun <ageldama@gmail.com>"]
+license = "Proprietary"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+sortedcontainers = "^2.1.0"
+protobuf = "^3.11.3"
+xxhash = "^1.4.3"
+kafka-python = "^2.0.1"
+uvloop = "^0.14.0"
+termcolor = "^1.1.0"
+cmd2 = "^1.3.3"
+pytest-asyncio = "^0.14.0"
+aiokafka = "^0.6.0"
+isort = "^5.4.2"
+isodate = "^0.6.0"
+
+[tool.poetry.dev-dependencies]
+autopep8 = "^1.5.2"
+flake8 = "^3.7.9"
+pylint = "^2.4.4"
+pytest = "^5.4.1"
+pytest-watch = "^4.2.0"
+mypy = "^0.812"
+magicattr = "^0.1.4"
+ipython = "^7.23.1"
+pytest-repeat = "^0.9.1"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"

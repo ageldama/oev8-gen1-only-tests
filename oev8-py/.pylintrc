@@ -1,0 +1,6 @@
+[IMPORTS]
+
+ignored-modules=acht_pb2,oev8_pb2
+
+# to ignore, the `duplicate-code` false positives.
+min-similarity-lines=30

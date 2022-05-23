@@ -1,0 +1,1355 @@
+#+TITLE: OeV8-Py README
+#+DATE: <2020-08-24 Mon 19:36>
+#+DATE: <2020-12-06 Sun 04:13>
+
+* 준비물, 시작하기, 종료하기
+
+** Requirements
+
+   1) Python 3.8+
+
+   2) Poetry 1.0+
+
+   3) Apache Kafka 2.12+
+      - 기본 Event-Writer와 Journal 저장을 위해 필요.
+
+
+** Build
+
+   1) ~poetry install~
+
+
+** OeV8 기동, 종료
+
+*** Kafka
+    1) Kafka Topic 이 필요
+       1. ~EVENT_WRITER/kafka_topic~
+       2. ~JOURNAL_WRITER/kafka_topic~
+
+*** 서버 시작하기
+    ex: ~python ./server_app.py configs/local.ini~
+
+    위와 같이 ~server_app.py~ 을 실행.
+
+*** 설정파일
+    - 설정 파일 경로를 ~server_app.py~ 의 파라미터로 전달.
+    - 설정 내용에 대해서는 이후 /설정파일/ 섹션을 참고.
+
+*** 서버 종료하기
+    1) SIGTERM, Control-C을 전달해서 종료.
+       - 종료시 스냅샷을 기록하는 종료.
+
+    2) Cmd-Shell을 이용해서 SHUTDOWN, SAVE_QUIT 커맨드으로 종료.
+       - 후자만 스냅샷을 남긴다.
+
+* Test 실행
+
+** Unit Tests
+   ~make test-unit~
+
+** Integration Tests
+   ~make test-int~
+
+   또한, TCP서버를 18888 포트으로 열려고 시도하므로, 해당 포트가
+   가용해야 테스트가 정상적으로 동작.
+
+
+** System Tests
+   system tests만을 실행하려면,
+
+   ~make test-sys~
+
+   시스템테스트가 사용하는 설정 파일은, ~test/test-environ.ini~ 파일을
+   사용. 즉, 여기에 지정된 포트를 사용해 bind하려고 시도하며,
+   kafka등에 접속을 하므로 미리 환경을 준비해놓아야한다.
+
+
+
+
+* Protobuf IDL
+  ~oev8-protobuf/*.proto~ 파일들에 가능한 커맨드와 커맨드의 요청과 응답의
+  내용, 에러 코드, 이벤트 타입 등등이 정의되어 있다.
+
+  다른 언어로 클라이언트를 만드는데 사용/참고한다.
+
+* 설정 파일
+  1) ~configs/local.ini~ 을 참고.
+  2) OeV8-Py 기동시 설정 파일 경로를 지정하여 적용.
+  3) 모든 설정은 환경변수로 설정파일에 지정한 내용을 변경 가능.
+
+** ~SERVER~ 섹션
+   1) ~host~ (String)
+      - 환경변수 OEV8_SERVER_HOST
+      - Bind 할 호스트 이름.
+      - *NOTE* 현재는 ~0.0.0.0~ 같은 wildcard은 사용할 수 없음.
+        - OeV8-Py Client에서 접속시 사용할 주소가 될 수 없으므로.
+        - TODO 개선이슈.
+
+   2) ~port~ (Integer)
+      - 환경변수 OEV8_SERVER_PORT
+      - Bind 할 포트 번호.
+      - 기본값 없음. (가능하면 8888)
+
+   3) ~request_timeout_secs~ (Integer)
+      - 환경변수 OEV8_SERVER_REQUEST_TIMEOUT_SECS
+
+      - Request Queue에서 몇 초나 지난 요청을 Timed out으로 처리할지
+        결정.
+
+      - 이 시간보다 오랬동안 대기했던 요청은 처리되지 않고, err_str이
+        err_code=ERR_OEV8_TIMEOUT인 JSON 문자열. (에러)
+        - 연결은 강제로 서버측에 의해서 종료되지 않는다.
+
+   4) ~read_timeout_secs~ (Integer)
+      - 환경변수 OEV8_SERVER_READ_TIMEOUT_SECS
+      - 서버가 요청헤더를 읽은 이후에 헤더에 지정된 길이만큼 읽는 동안
+        소요할 시간.
+      - 지정한 시간의 타임아웃이 발생하도록 읽어들이지 못하면
+        ConnectionError 예외를 발생한다.
+
+
+** ~CLOCKWORK~ 섹션
+   1) ~tradings_delay_secs~ (Integer)
+      - 환경변수 OEV8_CLOCKWORK_TRADINGS_DELAY_SECS
+      - Trading/Auction의 until_utc_timestamp_secs에 따라 finalize
+        처리를 자동으로.
+      - period을 지정.
+
+   2) ~snapshot_delay_secs~ (Integer)
+      - 자동으로 주기적으로 스냅샷을 기록할 period secs.
+
+
+** ~EVENT_WRITER~ 섹션
+   1) Kafka Event Writer
+      1) ~kafka_topic~ (String),
+         ~kafka_bootstrap_server~ (String),
+         ~kafka_client_id~ (String)
+         1) 환경변수 OEV8_EVENT_WRITER_KAFKA_TOPIC,
+            OEV8_EVENT_WRITER_KAFKA_BOOTSTRAP_SERVER,
+            OEV8_EVENT_WRITER_KAFKA_CLIENT_ID.
+         2) 이벤트를 기록할 대상 카프카 서버와 토픽.
+         3) kafka_bootstrap_server은 ~localhost:9092~ 와 같이 하나의
+            서버일 수 있고, ~a.b.c:9092,d.e.f:9092~ 와 같이 CSV형태로
+            여러개의 서버를 지정할 수 있다.
+
+** ~JOURNAL_WRITER~ 섹션
+   1) ~kafka_topic~ (String),
+      ~kafka_bootstrap_server~ (String),
+      ~kafka_client_id~ (String)
+
+      - 환경변수 OEV8_JOURNAL_WRITER_KAFKA_TOPIC,
+        OEV8_JOURNAL_WRITER_KAFKA_BOOTSTRAP_SERVER,
+        OEV8_JOURNAL_WRITER_KAFKA_CLIENT_ID.
+
+      - 저널을 기록할 대상 카프카 서버와 토픽.
+
+      - kafka_bootstrap_server은 ~localhost:9092~ 와 같이 하나의
+        서버일 수 있고, ~a.b.c:9092,d.e.f:9092~ 와 같이 CSV형태로
+        여러개의 서버를 지정할 수 있다.
+
+      - replaying 구현의 편의를 위해서 journal을 기록하는 Kafka
+        topic은 반드시 1개의 partition만을 가져야 한다.
+
+** ~JOURNAL_READER~ 섹션
+   1) ~kafka_partition~ (Integer),
+      ~kafka_group_id~ (String),
+      ~kafka_client_id~ (String)
+      - ~JOURNAL_WRITER/kafka_bootstrap_server~ 와
+        ~JOURNAL_WRITER/kafka_topic~ 을 참고하여 journal replaying에
+        사용.
+
+      - 환경변수 OEV8_JOURNAL_READER_KAFKA_PARTITION,
+        OEV8_JOURNAL_READER_GROUP_ID, OEV8_JOURNAL_READER_CLIENT_ID.
+
+** ~SNAPSHOT~ 섹션
+   1) ~output_dir~ (String)
+      - 환경변수 OEV8_SNAPSHOT_OUTPUT_DIR.
+
+      - 스냅샷 파일을 생성하고, recover시 스냅샷을 찾을 디렉토리.
+
+** ~STOPWATCH~ 섹션
+   1) ~filename~ (String),
+      ~max_mbytes~ (Integer),
+      ~backup_count~ (Integer)
+      - Stopwatch 로그를 남길 filename.  파일 이름을 생략하면 기록하지
+        않는다.
+      - max_mbytes 크기 만큼만 한 개의 로그 파일에 기록한다.
+      - max_mbytes에 따라 rotation이 일어난 파일은 backup_count만큼만
+        보관한다. 만약 backup_count=0이라면 무제한으로 보관.
+      - 참고: https://docs.python.org/3/library/logging.handlers.html#rotatingfilehandler
+      - 환경변수 OEV8_STOPWATCH_FILENAME, OEV8_STOPWATCH_MAX_MBYTES,
+        OEV8_STOPWATCH_BACKUP_COUNT.
+
+
+* Concepts
+
+** CmdReq Seq-Num
+   각 TCP 요청 커맨드는 그에 처리 순번을 갖는다.
+
+   이 순번은 OeV8의 스냅샷, 저널에 유일하다. 완전히 빈 상태의 스냅샷,
+   저널으로 OeV8을 초기화하여 시작하는 경우가 아니라면 계속해서 이
+   seq_num은 증가하며 반복하여 동일한 값을 다른 커맨드 요청에 대해서
+   할당하여 사용하지 않는다.
+
+   그러므로 특정 요청과 그 요청에 따른 응답 등을 식별하는데 활용할 수
+   있다.
+
+   그리고 요청으로 인해 생성된 이벤트도 식별하는데 활용할 수 있다.
+
+** Request-Response and Errors
+   OeV8서버는 TCP 통신으로 클라이언트가 요청을 보내고, 그 요청에 따른
+   처리 결과를 응답한다.
+
+*** Request from Client
+   요청의 형태는 다음과 같다:
+
+   #+begin_src text
+   // 모두 Network Order Endian.
+
+   (request) ::= (req-header) + (req-body)
+
+   (req-header: 18) ::= (body-len: 2) + (body-xxh64: 8) + (req-utc-epoch-secs: 8)
+
+   (req-body: N) ::= Protobuf(Oev8_CommandRequest)
+   #+end_src
+
+   위 req-header을 먼저 읽고, 그에 지정된 길이만큼의
+   req-body을 읽는데, ~SERVER/read_timeout_secs~ 을 초과하면
+   예외를 발생시킨다.
+
+   실제 읽은 req-body의 xxhash64 해시의 integer 값이 body-xxh64와
+   일치하는지 검사한다.
+
+   그리고 req-utc-epoch-secs의 시간 + ~SERVER/request_timeout_secs~ 이
+   초과한 상황이면, 해당 요청은 만기한 것으로 간주하여 처리하지 않고
+   예외를 발생시킨다.
+
+   Oev8_CommandRequest에 cmd_uuid을 통해서 특정한 커맨드 요청을
+   구분한다.
+
+   이를 위해 UUID v4을 생성하여, 그 integer 값의 바이트열을 그대로
+   설정하여 전달한다.
+
+   파이썬: https://docs.python.org/3/library/uuid.html#uuid.UUID.bytes
+
+   Go: https://pkg.go.dev/github.com/google/uuid?tab=doc#UUID (그냥
+   byte열임을 확인)
+
+
+*** Response to Client and Errors
+    응답 패킷은 다음과 같은 구조다:
+
+    #+begin_src text
+    (response) ::= (resp-header) + (resp-body)
+
+    (resp-header: 10) ::= (body-len: 2) + (body-xxh64: 8)
+
+    (resp-body: N) ::= Protobuf(Oev8_CommandResponse)
+    #+end_src
+
+    응답은 항상 주어진다.
+
+    하지만 응답이 없이 서버측에서 disconnect 될 경우도 있는데,
+    프로토콜의 순서가 잘못되었다고 서버가 판단하여 스트림을 다시
+    시작하려고 할 경우이다.
+
+    ~Oev8_CommandResponse~ 의 ~err_str~ 필드가 null이거나 빈 문자열이
+    아니라면, JSON으로 deserialize하여 에러 코드 등을 얻을 수 있다.
+
+    에러 JSON의 키값은 에러의 타입에 따라 다르다.
+
+    하지만, 항상 ~err_code~ 필드가 있으며, 이는 oev8.proto 에 정의된
+    ~ErrorCode~ 에 따른다.
+
+    에러의 타입들과 그에 따른 에러 객체의 형태는 이후 /Events/ 섹션을
+    참고.
+
+    ~cmd_uuid~ 을 Oev8_CommandRequest와 일치하도록 set하여 응답한다.
+
+    그리고 추가적으로 요청 커맨드에 대해 할당한 ~seq_num~ 을 추가하여
+    응답한다.
+
+
+
+** Events
+   요청 커맨드를 실행한 결과로서, 혹은 주기적으로 동작하는 스냅샷
+   기록, trading finalization의 결과로서 이벤트를 발생시키고 이를
+   수신할 수 있다.
+
+   각 커맨드는 다수개의 이벤트를 발생시킬 수 있음.
+
+   발생 가능한 이벤트의 종류와 각 타입별 구조는 ~Oev8_Event~
+   Protobuf을 참고.
+
+   원인이 요청 커맨드인 이벤트의 경우에는 Oev8_Command의 cmd_uuid,
+   seq_num을 복사해 담고 있다.
+
+   다만, 요청자가 아닌 대상에 전달될 필요가 적은 커맨드는 이벤트를
+   발생시키지 않는다. (예: SLEEP, PING 커맨드 등)
+
+
+** Journals and Snapshots
+   모든 command request은 journal에 처리 직전에 새로운 seq-num을
+   할당하여 기록된다.
+
+   그리고 다음과 같은 단계로 OeV8이 다시 시작될 때 상태 복구를 한다:
+
+   1) 마지막 스냅 파일을 찾아내어 로딩한다.
+
+   2) 로딩한 스냅샷 파일으로부터 마지막 seq-num을 찾고 그보다 큰
+      seq-num의 command-request을 저널기록에서 찾아내어 모두 있는만큼
+      실행하여 최종 상태를 복구한다.
+
+   이러한 단계를, 특히 (2)-단계를 journal replaying이라고 부르는데, 이
+   단계에서 다시 실행하는 저장되어 있던 command request은 실행하여
+   OeV8 자체의 상태를 복구하는데에만 사용하고, 외부 상태, 즉 이벤트를
+   발생시키지 않는 모드로 실행한다.
+
+   또한 이런 replaying mode에서는 SHUTDOWN, SAVE_QUIT와 같은 커맨드는
+   의도적으로 무시하여 복구중에 중단이 되는 것을 방지한다.
+
+   replaying 구현의 편의를 위해서 journal을 기록하는 Kafka topic은
+   반드시 1개의 partition만을 가져야 한다. 그래야만 seq-num에 따라
+   선형적으로 배열되어 있음을 알기 쉽기 때문이다.
+
+
+** Balances and Earnings
+   거래고객은 구매대금과 security deposit을 위해서 balance을 입금하여
+   사용한다.
+
+   하지만, 거래로 발생한 판매수익은 모두 수익자의 balance 계좌에 바로
+   적립되지 않는다.
+
+   거래로 발생한 판매수익은 거래의 finalization 시에 earnings 계좌로
+   이체된다. 이렇게 이체된 earnings은 OeV8 외부에서 거래가 정상적으로
+   마감되었고 배송이나 환불 등의 최종처리가 모두 외부에서 마무리
+   되었음이 확인되었을 때, OeV8의 Balance-Cvt-To와 같은 커맨드를
+   이용하여 해당 거래고객의 Balance계좌로 이체되어야 한다.
+
+   balances와 earnings은 해당 고객의 계좌에 특정 화폐종류(currency
+   type)에 따라 값을 저장한다.
+
+   예를 들면, KRW의 계좌금액과 BTC 계좌금액을 고객A은 모두
+   Balances으로 따로 가질 수 있다.
+
+** Service Customer and Security Deposits
+   특별한 Customer ID이 있다. 0번 Customer ID은 실제로 존재하지 않는
+   계정, 즉 service customer을 지정한다.
+
+   이 service customer은 거래를 위한 security deposit을 이체해 갖고
+   있거나, 거래시 구매 대금을 갖고 있는 역할을 한다.
+
+   또한, 이후에 설명할 item counts에 대해서도 판매 제시된 수량을 이
+   계정에 먼저 이체하여놓는다.
+
+
+
+** Item Counts
+   판매하려는 물량과 구매한 물량을 의미.
+
+   각 Item Count은 Trading의 ID와 동일한 ID으로 식별된다. 즉, 모든
+   거래는 그마다 고유한 Item Count을 갖게 된다.
+
+   구매가 체결되는 즉시 해당 구매고객의 Item Count이 증가하며, 이를
+   이용해서 재판매를 할 수 있게 된다.
+
+   그리고 최초 물량 제공자가 아닌 구매자는 거래가 finalized 된 다음에
+   보유한 물량을 수령하여 실물을 갖게 된다.
+
+
+** Tradings and Auctions
+   Trading은 모든 거래장터의 기본 엔티티이며, 해당 거래의 상태(완료,
+   진행 중, 일시중지, 취소됨 등)과 그에 제시된 주문(buy, sell) 등을
+   갖는다.
+
+   그리고 체결된 주문들, matches을 갖는다.
+
+   각 거래는 거래에 사용할 수 있는 화폐종류(currency type)을 제한한다.
+
+   그리고 Trading에 기반한 확장으로서 Auction은 판매자가 제시한 제한
+   수량과 가격을 갖는다. sell/buy 타입 또한 갖는다.
+
+
+** Orders and Bids
+   일단 Trading Exchange 거래장터는 OEV8_CMD_TRADING_NEW 커맨드으로
+   물량제시와 판매 주문을 자동으로 등록하며 시작한다.
+
+   그리고 이에 반대 되는 BUY 주문을 보내어 체결을 기대할 수 있다.
+
+   주문의 타입은 Limit/Market 주문이 있고, 주문의 옵션으로는
+   Fill-or-Kill와 Immediate-or-Cancel을 지원한다.
+
+   Selling/Buying Auction거래장터에 대해서는 bid-buying/ask-selling이
+   가능하다. 그리고 FoK와 None형식의 주문옵션을 지원한다.
+
+** Finalization, Cancellation and Eviction
+
+
+   거래는 일시중지된 다음에 취소되거나 최종정산 단계를 거친다.
+
+   최종정산은 다음에 설명할 'Tradings Clockwork'에 의해서 자동으로
+   지정된 시각에 일어나거나, 관리자 커맨드으로 직접 일으킬 수 있다.
+
+   정산과 취소가 일어나더라도 earnings을 balance으로 이체해주지는
+   않는다. 외부 프로세스가 이를 추가적으로 이체해주어야 한다.
+
+   이렇게 만든 이유는 OeV8 단계에서 정산/취소가 있었다고 하더라도,
+   얼마나 환불해줄지, 언제쯤 이체를 해주는지는 조절할 수 있어야 하기
+   때문이다.
+
+   예를 들어, 판매로 얻은 수익은 실제로 배송이 완료된 시점에야 이체를
+   해주는 것이 맞고, 혹은 다른 고려에 따라 동작하는 것이 더 유연하기
+   때문이다.
+
+   취소에 대해서도 마찬가지이다. 취소를 일으킨 것이 판매자이고 이로
+   인해서 다른 구매자들이 피해를 보거나 했다면, security deposit을
+   모두 환불해주지 않고 일부를 차감하거나 할 필요가 있기 때문이다.
+
+   하지만, 구매를 위해 요청한 수량에 가격의 곱, 전체 가격에서 실제로
+   체결된 금액을 제외하고 미체결 제시금을 정산시 즉시 환불해준다.
+
+   Auction거래장터에 대해서는, 정산시점이 되어서야 Auction의 sell/buy
+   타입에 따라서 더 매력적인 가격대의 bidding부터 finalization시에
+   체결을 한다. 그리고 체결 결과에 따라 item count와 earnings을
+   이체하고, 또 미체결 제시금을 환불해준다.
+
+
+** Tradings Clockwork
+   모든 Trading장터와 Auction장터는 지정한 UTC 초단위 시간까지 거래가
+   가능하며, 지정한 시각에 자동으로 PAUSED된 다음에 Finalization을
+   거쳐 정산되고, 그 다음에 OeV8의 메모리를 해제하도록 Eviction된다.
+
+   이 주기는 설정파일에서 지정이 가능하다.
+
+   별도의 외부 커맨드를 실행하지 않고, 처음 거래 장터를 개설할 때 이
+   시각의 UTC timestamp을 초단위으로 지정하여 자동적으로 일어나게
+   한다.
+
+   이 시각은 trading-until와 같은 커맨드으로 변경과 확인이 가능하다.
+
+* Supplemental Tools
+
+** cmd_shell.py
+   OeV8 서버에 커맨드를 보내서 실행해볼 수 있고, 또 카프카 이벤트
+   스트림을 구독하여 어떤 이벤트가 발생하는지 확인할 수 있다.
+
+   텍스트 REPL형태의 애플리케이션이며, TAB을 이용하여 가능한 커맨드를
+   확인하고, 각 커맨드의 help 문서를 읽어 어떻게 사용하는지를 확인할
+   수 있다.
+
+** pb3_decode.py
+   command request, command response, journal, event 의 hex문자열을
+   디코딩하고, protobuf으로 파싱하여 출력한다.
+
+   이 중에서 command request, command response, journal은 header을
+   제외한 body만 갖고 있는 경우에도 파싱하여 출력할 수 있다.
+
+** journal_dump.py
+   카프카 저널 토픽의 특정 오프셋부터 N개의 항목을 replay으로 읽어들여
+   protobuf parsed 형태로 출력한다.
+
+** snapshot_conv.py
+   Binary Packed Snapshot 파일을 SQLite3 방식의 스냅샷 파일 형식과 상호변환한다.
+
+   OeV8은 언제나 Binary Packed Snapshot 형식을 저장하고 로딩하지만,
+   SQLite3 형식의 스냅샷으로 변환하여 SQL을 이용하여 수정하고, 다시
+   Binary Packed Snapshot으로 역변환하여 스냅샷을 변경할 수 있도록
+   활용할 수 있다.
+
+
+
+* Commands
+  커맨드의 요청, 응답, 그리고 이벤트에 대해서는 자세한 내용은
+  oev8.proto 파일을 참고.
+
+  더 자세한 내용과 가능한 옵션은 모두 주석에 작성되어 있음.
+
+  다만, 사용case에 따른 synopsis은 "상황별 커맨드 Synopsis" 섹션에
+  설명하고, 각 커맨드에 따른 영향들은 "Commands Types"에서 설명.
+
+** 관리 커맨드들
+
+*** OEV8_CMD_SHUTDOWN: 스냅샷 기록 없이 바로 종료
+    - 즉시 서버를 종료.
+    - Events
+      1) OEV8_EVT_SHUTDOWN
+
+*** OEV8_CMD_SNAPSHOT: 스냅샷 기록
+    - 스냅샷을 저장. 종료하지는 않음.
+    - Events
+      1) OEV8_EVT_SNAPSHOT
+
+*** OEV8_CMD_SAVE_QUIT: 스냅샷 기록 후 종료
+    - 스냡샷을 저장하고 즉시 종료.
+
+    - Events
+      1) OEV8_EVT_SNAPSHOT
+      2) OEV8_EVT_SHUTDOWN
+
+*** OEV8_CMD_ENTER_MAINT: 관리모드 진입
+    - 이미 관리모드에 있어도 에러를 발생시키지는 않는다.
+
+    - 관리모드에서는 다음의 커맨드들만을 실행 가능하다:
+      1) 관리 커맨드들 :: OEV8_CMD_ENTER_MAINT, OEV8_CMD_LEAVE_MAINT,
+         OEV8_CMD_SNAPSHOT, OEV8_CMD_SHUTDOWN, OEV8_CMD_SAVE_QUIT,
+         OEV8_CMD_PING, OEV8_CMD_SLEEP
+
+      2) 조회 커맨드들 :: OEV8_CMD_LIST_TRADING_ID,
+         OEV8_CMD_COUNT_TRADING_ID, OEV8_CMD_TRADING_INFO,
+         OEV8_CMD_LIST_ITEM_PROVIDING, OEV8_CMD_COUNT_ITEM_PROVIDING,
+         OEV8_CMD_LIST_ORDER, OEV8_CMD_COUNT_ORDER,
+         OEV8_CMD_LIST_MATCH, OEV8_CMD_COUNT_MATCH,
+         OEV8_CMD_LIST_PRICE, OEV8_CMD_COUNT_PRICE,
+         OEV8_CMD_LIST_ORDER_ID_BY_PRICE,
+         OEV8_CMD_COUNT_ORDER_ID_BY_PRICE,
+         OEV8_CMD_TRADING_AUCTION_INFO
+
+    - Events
+      1) OEV8_EVT_ENTER_MAINT : 정말 관리모드 진입시.
+
+*** OEV8_CMD_LEAVE_MAINT: 관리모드 종료
+    - 이미 관리모드가 아니어도 에러를 발생시키지는 않는다.
+    - Events
+      1) OEV8_EVT_LEAVE_MAINT : 정말로 관리모드 종료시.
+
+*** OEV8_CMD_PING: Ping
+    - 특이사항없음.
+    - 빈 응답과 서버 로그만을 발생시킴.
+
+*** OEV8_CMD_SLEEP: 지정한 secs만큼 sleep
+    - 지정한 시간(초)만큼 서버를 중지함.
+      - 중지한 동안에는 다른 요청을 처리하지 못하게 된다.
+      - 동시성 테스트와 같은 목적으로 활용.
+
+** Balance and Earning
+
+*** OEV8_CMD_BALANCE_GET: 고객-화폐 타입별 조회
+    - 지정한 balance/earning을 찾지 못해도 amt=0을 결과로 에러를
+      발생시키지 않는다.
+
+*** OEV8_CMD_BALANCE_DEPOSIT: 고객에 입금
+    - Events
+      1) OEV8_EVT_BALANCE_DEPOSIT 발생.
+         - OEV8_EVT_CAUSE_BALANCE_DEPOSIT_DEPOSIT
+
+    - Errors
+      1) CurrencyAmtShouldBeZeroOrPositive
+
+*** OEV8_CMD_BALANCE_WITHDRAW: 고객에서 출금
+    - Events
+      1) OEV8_EVT_BALANCE_WITHDRAW
+         - OEV8_EVT_CAUSE_BALANCE_WITHDRAW_WITHDRAW
+
+    - Errors
+      1) CurrencyAmtShouldBeZeroOrPositive
+
+      2) NotEnoughBalance
+
+
+*** OEV8_CMD_BALANCE_DELETE_BY_CURRENCY: 특정 화폐타입의 계좌 모두 지우기
+    - Events
+      1) OEV8_EVT_BALANCE_DELETE_BY_CURRENCY
+
+    - Errors
+      - 존재하지 않는 currency-type이라도 에러를 발생하지는 않고,
+        결과값이 False.
+
+*** OEV8_CMD_BALANCE_DELETE_BY_CUSTOMER: 특정 고객의 계좌 모두 지우기
+    - Events
+      1) OEV8_EVT_BALANCE_DELETE_BY_CUSTOMER
+
+    - Errors
+      - 존재하지 않는 customer이라도 에러 없이 결과값만 False.
+
+*** OEV8_CMD_BALANCE_XFER_FROM: 특정 고객의 계좌에서 서비스 계정으로 이체
+    - Events
+      1) OEV8_EVT_BALANCE_XFER_FROM
+
+    - Errors
+      1) CurrencyAmtShouldBeZeroOrPositive
+      2) NotEnoughBalance
+
+*** OEV8_CMD_BALANCE_XFER_TO: 특정 고객의 계좌로 서비스 계정에서 이체
+    - Events
+      1) OEV8_EVT_BALANCE_XFER_TO
+
+    - Errors
+      1) CurrencyAmtShouldBeZeroOrPositive
+      2) NotEnoughBalance
+
+*** OEV8_CMD_BALANCE_CVT_XFER_TO: 서비스계정->고객에게 전환 이체
+    - Events
+      1) OEV8_EVT_BALANCE_CVT_XFER_TO
+
+    - Errors
+      1) CurrencyAmtShouldBeZeroOrPositive
+      2) NotEnoughBalance
+
+
+** Item Count
+*** OEV8_CMD_ITEM_COUNT_GET: 고객의 Qty을 조회
+    - 에러 없음. 존재하지 않는 Trading/Customer일지라도 qty=0.
+
+*** OEV8_CMD_ITEM_COUNT_INC: 고객의 Qty을 증가
+    - Events
+      1) OEV8_EVT_ITEM_COUNT_INC
+
+    - Errors
+      1) ItemQtyShouldBeZeroOrPositive
+
+*** OEV8_CMD_ITEM_COUNT_DEC: 고객의 Qty을 감소
+    - Events
+      1) OEV8_EVT_ITEM_COUNT_DEC
+
+    - Errors
+      1) ItemQtyShouldBeZeroOrPositive
+
+      2) NotEnoughItemCount
+
+
+*** OEV8_CMD_ITEM_COUNT_DELETE_BY_TRADING: 특정 Trading에 속한 Qty 정보를 모두 소거
+    - Events
+      1) OEV8_EVT_ITEM_COUNT_DELETE_BY_TRADING
+
+    - Errors
+      - 존재하지 않는 Trading/Auction일지라도 에러 없음. 결과만 False.
+
+
+*** OEV8_CMD_ITEM_COUNT_DELETE_BY_CUSTOMER: 특정 고객의 Qty 정보를 모두 소거
+    - Events
+      1) OEV8_EVT_ITEM_COUNT_DELETE_BY_CUSTOMER
+
+    - Errors
+      - 존재하지 않는 Trading/Auction일지라도 에러 없음. 결과만 False.
+
+*** OEV8_CMD_ITEM_COUNT_XFER_FROM: 특정 고객으로부터 서비스 계정으로 이체
+    - Events
+      1) OEV8_EVT_ITEM_COUNT_XFER_FROM
+
+    - Errors
+      1) ItemQtyShouldBeZeroOrPositive
+
+      2) NotEnoughItemCount
+
+*** OEV8_CMD_ITEM_COUNT_XFER_TO: 특정 고객에게 서비스 계정으로부터 이체
+    - Events
+      1) OEV8_EVT_ITEM_COUNT_XFER_TO
+
+    - Errors
+      1) ItemQtyShouldBeZeroOrPositive
+
+      2) NotEnoughItemCount
+
+** Tradings and Auctions
+*** OEV8_CMD_TRADING_NEW: 새로운 Trading Exchange 거래장터 시작
+    새로운 거래장터를 시작해, 담보금을 제시하고, 해당 장터에 판매
+    수량을 제공 및 자동으로 지정한 가격으로 Limit-Sell 주문도 등록하여
+    거래장터를 시작한다.
+
+    해당 Trading에 속하는 아이템 보유 수량이 없어도 시작할 수 있다.
+    어차피 OEV8_CMD_TRADING_PROVIDE_ITEM을 실행하므로.
+
+    - Events
+      1) OEV8_EVT_TRADING_NEW
+
+      2) OEV8_EVT_BALANCE_XFER_FROM
+         1) OEV8_EVT_CAUSE_BALANCE_XFER_FROM_SECURITY_DEPOSIT
+            - 담보금 제시
+
+    - Errors
+      1) CurrencyAmtShouldBePositive
+         - 담보금과 지정가 판매 주문의 unit price.
+
+      2) ItemQtyShouldBePositive
+         - 지정가 판매 주문의 수량.
+
+      3) NotEnoughBalance
+         - 제시한 담보금만큼 잔고 부족.
+
+    - 사용하는 내부 단계들:
+      1) OEV8_CMD_TRADING_PROVIDE_ITEM
+      2) OEV8_CMD_TRADING_ORDER_LIMIT_SELL
+
+*** OEV8_CMD_TRADING_JOIN: 거래 중인 Trading Exchange에 물량 제공하여 참여
+    담보금을 제시하고, 이미 존재하는 거래 장터에 아이템 물량을
+    제공한다.
+
+    OEV8_CMD_TRADING_NEW와는 다르게 Limit-Sell 주문을 자동으로
+    등록하지는 않는다.
+
+    - Events
+      1) OEV8_EVT_BALANCE_XFER_FROM
+         1) OEV8_EVT_CAUSE_BALANCE_XFER_FROM_SECURITY_DEPOSIT
+            - 담보금 제시
+
+    - Errors
+      1) TradingIsNotFound
+
+      2) TradingIsNotOpened
+
+      3) CurrencyAmtShouldBePositive
+         - 담보금과 지정가 판매 주문의 unit price.
+
+      4) NotEnoughBalance
+         - 제시한 담보금만큼 잔고 부족.
+
+
+    - 사용하는 내부 단계들:
+      1) OEV8_CMD_TRADING_PROVIDE_ITEM
+
+*** OEV8_CMD_TRADING_FINALIZE on EXCHANGE: 거래장터를 정산처리
+    - Events
+      1) OEV8_EVT_TRADING_FINALIZED
+         - 모든 정산처리가 완료된 다음에 발생.
+
+      2) OEV8_EVT_BALANCE_XFER_TO
+         1) OEV8_EVT_CAUSE_BALANCE_XFER_TO_REFUND_UNMATCHED_LIMIT_BUY
+            - 미체결 물량에 대한 비용을 구매 주문자에게 환불.
+
+      3) OEV8_EVT_BALANCE_CVT_XFER_TO
+         1) OEV8_EVT_CAUSE_BALANCE_CVT_XFER_TO_EARNING_PREP
+            - 체결량의 가격을 판매자의 수익으로 이체.
+
+    - Errors
+      1) TradingIsNotFound
+
+      2) TradingIsNotCompletable
+         - OPEN, PAUSED 상태가 아닌 거래장터.
+
+*** OEV8_CMD_TRADING_FINALIZE on AUCTION: 경매장터를 정산처리
+    - Events
+      1) OEV8_EVT_TRADING_FINALIZED
+         - 모든 정산처리가 완료된 다음에 발생.
+
+      2) OEV8_EVT_TRADING_ORDER_MATCHED
+         - 경매거래는 정신시에 체결이 이루어지며, 체결된 making/taking
+           주문 pair에 대해서 1회씩 발생.
+
+      3) OEV8_EVT_ITEM_COUNT_XFER_TO
+         1) OEV8_EVT_CAUSE_ITEM_COUNT_XFER_TO_BUYING
+            - 구매자에게 아이템 수량 서비스계정에서 이체.
+
+      4) OEV8_EVT_BALANCE_XFER_TO
+         1) OEV8_EVT_CAUSE_BALANCE_XFER_TO_REFUND_UNMATCHED_LIMIT_BUY
+            - 미체결 구매 주문에 대해서 서비스계정으로부터 환불.
+
+      5) OEV8_EVT_BALANCE_CVT_XFER_TO
+         1) OEV8_EVT_CAUSE_BALANCE_CVT_XFER_TO_EARNING_PREP
+            - 판매자의 Earning으로 수익금만큼 서비스계정에서 이체.
+
+    - Errors
+      1) TradingIsNotFound
+         - 실제로 거래장터가 존재하지 않는 경우는 물론, 거래장터의
+           타입이 경매장터가 아닌 경우에도 발생.
+
+      2) TradingIsNotCompletable
+         - OPEN, PAUSED 상태가 아닌 거래장터.
+
+*** OEV8_CMD_TRADING_RESUME: 일시중지한 거래장터를 재개
+    PAUSED 상태인 거래장터를 재개.
+
+    - Events
+      1) OEV8_EVT_TRADING_RESUME
+
+    - Errors
+      1) TradingIsNotFound
+
+      2) TradingIsNotPaused
+
+*** OEV8_CMD_TRADING_PAUSE: 거래장터를 일시중지
+    - Events
+      1) OEV8_EVT_TRADING_PAUSE
+
+    - Errors
+      1) TradingIsNotFound
+
+      2) TradingIsNotOpened
+
+*** OEV8_CMD_TRADING_EVICT: 거래장터 데이터를 메모리에서 소거
+    - Events
+      1) OEV8_EVT_TRADING_EVICTED
+
+      2) OEV8_EVT_ITEM_COUNT_DELETE_BY_TRADING
+
+    - Errors
+      1) TradingIsNotFound
+
+      2) TradingIsNotEvictable
+         - 거래장터가 CANCELLED, COMPLETED 상태가 아님.
+
+*** OEV8_CMD_TRADING_CANCEL: 거래장터를 취소처리
+    거래장터를 취소 상태로 만든다.
+
+    거래장터에 일어난 BUY주문에 대한 주문금액을 모두 환불해준다.
+
+    아이템 count은 되돌리지 않는다.
+
+    또한 제시한 security deposit들도 환불을 자동으로 해주지는 않는다.
+    (필요하다면, 외부에서 제시 시점에 남겨놓은 별도 기록으로
+    환불처리를 해야한다.)
+
+    - Events
+      1) OEV8_EVT_TRADING_CANCELLED
+
+      2) OEV8_EVT_BALANCE_XFER_TO
+         - OEV8_EVT_CAUSE_BALANCE_XFER_TO_CANCEL_TRADING
+         - {Limit|Market}-Buy 구매금액 환불.
+
+    - Errors
+      1) TradingIsNotFound
+
+      2) TradingIsNotCancellable
+         - 거래장터가 OPEN, PAUSED 상태가 아님.
+
+      3) {Limit|Market}-Buy 구매금액 환불시.
+         1) CurrencyAmtShouldBeZeroOrPositive
+         2) NotEnoughBalance
+
+
+*** OEV8_CMD_TRADING_UNTIL: 거래장터의 정산시점 조회-or-설정
+    - Errors
+      1) TradingIsNotFound
+
+
+*** OEV8_CMD_TRADING_PROVIDE_ITEM: 거래장터에 특정 고객이 아이템 물량 제공
+    거래장터의 item providings 정보에 해당 제공자 고객ID에 물량을
+    증가시킨다.
+
+    또한, 해당 고객의 item count 보유 수량도 증가시켜서 판매 주문을
+    시작할 수 있게한다.
+
+    - Events
+      1) OEV8_EVT_TRADING_PROVIDE_ITEM
+         - 별도의 OEV8_EVT_ITEM_COUNT_INC 이벤트를 발생시키지는
+           않는다. 그러므로 이 타입의 이벤트도 수신하여 아이템 보유
+           수량에 반영해야한다.
+
+         - 별도로 이벤트를 발생시키지 않는 이유는, 이 Cmd 자체가
+           아이템 보유 수량을 증가시키는 것을 의미하기 때문이다.
+
+    - Errors
+      1) ItemQtyShouldBePositive
+
+      2) TradingIsNotFound
+
+      3) TradingIsNotOpened
+
+
+*** OEV8_CMD_TRADING_UNPROVIDE_ITEM: 거래장터에 특정 고객 제공 아이템 물량을 철회
+    - Events
+      1) OEV8_EVT_TRADING_UNPROVIDE_ITEM
+         - PROVIDE와 마찬가지 이유로 별도의 OEV8_EVT_ITEM_COUNT_DEC
+           이벤트를 발생시키지는 않는다. 그러므로 이 타입의 이벤트도
+           수신하여 아이템 보유 수량에 반영해야한다.
+
+    - Errors
+      1) ItemQtyShouldBePositive
+
+      2) TradingIsNotFound
+
+      3) TradingIsNotOpened
+
+      4) NotAnItemProvider
+
+      5) NotEnoughItemCount
+
+      6) NotEnoughItemProviding
+
+*** OEV8_CMD_TRADING_ORDER_LIMIT_SELL: Exchange 거래장터에 Limit-Sell 주문
+    - Events
+      1) OEV8_EVT_TRADING_ORDER_LIMIT_SELL
+         - 거래를 일으키고 바로 발생.
+
+      2) OEV8_EVT_ITEM_COUNT_XFER_FROM
+         1) OEV8_EVT_CAUSE_ITEM_COUNT_XFER_FROM_SELLING
+            - 판매를 위해 서비스계정으로 아이템 수량을 이체한 이벤트.
+
+      3) OEV8_EVT_TRADING_ORDER_MATCHED
+         1) 판매 주문이 오더북의 다른 주문을 taking 하여 즉시 체결이
+            일어남.
+
+      4) OEV8_EVT_ITEM_COUNT_XFER_TO
+         1) OEV8_EVT_CAUSE_ITEM_COUNT_XFER_TO_BUYING
+            - 판매 주문이 오더북의 다른 구매 making 주문과 즉시 체결이
+              일어나, maker에게 아이템 수량을 이체.
+
+      5) OEV8_EVT_TRADING_ORDER_CANCEL_REMAINING
+         1) OEV8_EVT_CAUSE_TRADING_ORDER_CANCEL_FOK
+            - FoK 주문 옵션이 지정되어 있어서 주문 체결을 하지 않고
+              즉시 취소할 때.
+
+         2) OEV8_EVT_CAUSE_TRADING_ORDER_CANCEL_IOC
+            - IoC 주문 옵션이 지정되어 있어서 주문 체결을 하지 않고
+              즉시 취소.
+
+    - Errors
+      1) TradingIsNotFound
+
+      2) TradingIsNotOpened
+
+      3) ItemQtyShouldBePositive
+         - 판매하려는 수량이 양수가 아님.
+
+      4) CurrencyAmtShouldBePositive
+         - 판매 단위가격이 양수가 아님.
+
+      5) NotEnoughItemCount
+         - 보유한 아이템 수량이 판매에 지정한 것보다 부족함.
+
+      6) ExistingOrderId
+         - programming error으로 발생할 수 있음.
+
+*** OEV8_CMD_TRADING_ORDER_LIMIT_BUY: Exchange 거래장터에 Limit-Buy 주문
+    - Events
+      1) OEV8_EVT_TRADING_ORDER_LIMIT_BUY
+         - 거래를 일으키고 바로 발생.
+
+      2) OEV8_EVT_TRADING_ORDER_MATCHED
+         1) 주문이 오더북의 다른 주문을 taking 하여 즉시 체결됨.
+
+      3) OEV8_EVT_BALANCE_XFER_FROM
+         1) OEV8_EVT_CAUSE_BALANCE_XFER_FROM_BUYING
+            - 구매 주문을 위해 (수량 x 제시가격) 만큼 서비스계정의
+              계좌로 Balances에서 이체.
+
+      4) OEV8_EVT_TRADING_ORDER_CANCEL_REMAINING
+         1) OEV8_EVT_CAUSE_TRADING_ORDER_CANCEL_FOK
+            - FoK 주문 옵션이 지정되어 있어서 주문 체결을 하지 않고
+              즉시 취소.
+
+         2) OEV8_EVT_CAUSE_TRADING_ORDER_CANCEL_IOC
+            - IoC 주문 옵션이 지정되어 있어서 주문 체결을 하지 않고
+              즉시 취소.
+
+      5) OEV8_EVT_ITEM_COUNT_XFER_TO
+         1) OEV8_EVT_CAUSE_ITEM_COUNT_XFER_TO_BUYING
+            - 판매 making 주문과 즉시 체결이 일어나 아이템 수량을 구매
+              주문(taker)에게 증가.
+
+    - Errors
+      1) TradingIsNotFound
+
+      2) TradingIsNotOpened
+
+      3) ItemQtyShouldBePositive
+         - 구매 요청 수량이 양수가 아님.
+
+      4) CurrencyAmtShouldBePositive
+         - 구매 요청 단위가격이 양수가 아님.
+
+      5) NotEnoughBalance
+         - 구매를 위해 제시한 가격 계좌 잔고 부족.
+
+      6) ExistingOrderId
+         - programming error으로 발생할 수 있음.
+
+*** OEV8_CMD_TRADING_ORDER_MARKET_SELL: Exchange 거래장터에 Market-Sell 주문
+    - Events
+      1) OEV8_EVT_TRADING_ORDER_MARKET_SELL
+         - 거래를 일으키고 바로 발생.
+
+      2) OEV8_EVT_ITEM_COUNT_XFER_FROM
+         1) OEV8_EVT_CAUSE_ITEM_COUNT_XFER_FROM_SELLING
+            - 판매를 위해 서비스계정으로 아이템 수량을 이체한 이벤트.
+
+      3) OEV8_EVT_TRADING_ORDER_MATCHED
+         1) 판매 주문이 오더북의 다른 주문을 taking 하여 즉시 체결이
+            일어남.
+
+      4) OEV8_EVT_ITEM_COUNT_XFER_TO
+         1) OEV8_EVT_CAUSE_ITEM_COUNT_XFER_TO_BUYING
+            - 판매 주문이 오더북의 다른 구매 making 주문과 즉시 체결이
+              일어나, maker에게 아이템 수량을 이체.
+
+      5) OEV8_EVT_TRADING_ORDER_CANCEL_REMAINING
+         1) OEV8_EVT_CAUSE_TRADING_ORDER_CANCEL_FOK
+            - FoK 주문 옵션이 지정되어 있어서 주문 체결을 하지 않고
+              즉시 취소할 때.
+
+         2) OEV8_EVT_CAUSE_TRADING_ORDER_CANCEL_IOC
+            - 시장가 주문은 기본이 IoC이므로 체결되지 않은 물량에 대해
+              항상 취소됨.
+
+    - Errors
+      1) TradingIsNotFound
+
+      2) TradingIsNotOpened
+
+      3) ItemQtyShouldBePositive
+         - 판매하려는 수량이 양수가 아님.
+
+      4) CurrencyAmtShouldBePositive
+         - 판매 단위가격이 양수가 아님.
+
+      5) NotEnoughItemCount
+         - 보유한 아이템 수량이 판매에 지정한 것보다 부족함.
+
+      6) ExistingOrderId, OrderIdNotFound, OrderOfferLineIsFulfilled,
+         OrderOfferLineIsCancelled
+         - programming error으로 발생할 수 있음.
+
+
+*** OEV8_CMD_TRADING_ORDER_MARKET_BUY: Exchange 거래장터에 Market-Buy 주문
+    - Events
+      1) OEV8_EVT_TRADING_ORDER_MARKET_BUY
+         - 거래를 일으키고 바로 발생.
+
+      2) OEV8_EVT_TRADING_ORDER_MATCHED
+         1) 주문이 오더북의 다른 주문을 taking 하여 즉시 체결됨.
+
+      3) OEV8_EVT_BALANCE_XFER_FROM
+         1) OEV8_EVT_CAUSE_BALANCE_XFER_FROM_BUYING
+            - 구매 주문을 위해 체결량과 체결가의 곱만큼 서비스계정의
+              계좌로 Balances에서 이체.
+
+      4) OEV8_EVT_TRADING_ORDER_CANCEL_REMAINING
+         1) OEV8_EVT_CAUSE_TRADING_ORDER_CANCEL_FOK
+            - FoK 주문 옵션이 지정되어 있어서 주문 체결을 하지 않고
+              즉시 취소.
+
+         2) OEV8_EVT_CAUSE_TRADING_ORDER_CANCEL_IOC
+            - 미체결물량은 즉시 취소. 시장가 주문은 IoC이 기본.
+
+         3) OEV8_EVT_CAUSE_TRADING_ORDER_CANCEL_NOT_ENOUGH_BALANCE
+            - 더 이상 체결을 진행할 수 없도록 시장가 구매 주문자의
+              잔고 부족으로, 시장가 구매 주문을 취소할 때 발생.
+
+      5) OEV8_EVT_ITEM_COUNT_XFER_TO
+         1) OEV8_EVT_CAUSE_ITEM_COUNT_XFER_TO_BUYING
+            - 판매 making 주문과 즉시 체결이 일어나 아이템 수량을 구매
+              주문(taker)에게 증가.
+
+    - Errors
+      1) TradingIsNotFound
+
+      2) TradingIsNotOpened
+
+      3) ItemQtyShouldBePositive
+         - 구매 요청 수량이 양수가 아님.
+
+      4) ExistingOrderId
+         - programming error으로 발생할 수 있음.
+
+
+*** OEV8_CMD_TRADING_ORDER_CANCEL_REMAINING: Exchange, Auction 거래장터 주문을 취소
+    - Events
+      1) OEV8_EVT_TRADING_ORDER_CANCEL_REMAINING
+         - 취소 처리를 완료했을때 발생.
+
+      2) OEV8_EVT_BALANCE_XFER_TO
+         1) OEV8_EVT_CAUSE_BALANCE_XFER_TO_REFUND_UNMATCHED_LIMIT_BUY
+            - Limit-Buy을 취소할 때 미체결 수량에 대한 환불.
+
+    - Errors
+      1) TradingIsNotFound
+
+      2) TradingIsNotOpened
+
+      3) OrderIdNotFound, OrderOfferLineIsFulfilled,
+         OrderOfferLineIsCancelled
+
+*** OEV8_CMD_TRADING_NEW_SELLING_AUCTION: 새로운 판매경매장터를 시작
+    - Events
+      1) OEV8_EVT_TRADING_NEW
+
+      2) OEV8_EVT_BALANCE_XFER_FROM
+         1) OEV8_EVT_CAUSE_BALANCE_XFER_FROM_SECURITY_DEPOSIT
+
+      3) OEV8_EVT_TRADING_PROVIDE_ITEM
+
+      4) OEV8_EVT_ITEM_COUNT_XFER_FROM
+         1) OEV8_EVT_CAUSE_ITEM_COUNT_XFER_FROM_SELLING_AUCTION
+            - 판매 물량을 서비스계정으로 이체.
+
+    - Errors
+      1) CurrencyAmtShouldBePositive
+         - 제시하는 경매의 최저/최대 가격이 양수인지.
+         - 담보금 금액이 양수인지.
+
+      2) ItemQtyShouldBePositive
+         - 판매 경매의 제공 물량이 양수인지.
+
+      3) ExistingTradingId
+
+      4) NotEnoughBalance
+
+    - 사용하는 내부 커맨드:
+      1) OEV8_CMD_TRADING_PROVIDE_ITEM
+
+*** OEV8_CMD_TRADING_NEW_BUYING_AUCTION: 새로운 구매경매장터를 시작
+    - Events
+      1) OEV8_EVT_TRADING_NEW
+
+      2) OEV8_EVT_BALANCE_XFER_FROM
+         1) OEV8_EVT_CAUSE_BALANCE_XFER_FROM_SECURITY_DEPOSIT
+         2) OEV8_EVT_CAUSE_BALANCE_XFER_FROM_BUYING
+
+    - Errors
+      1) CurrencyAmtShouldBePositive
+         - 제시하는 경매의 최저/최대 가격이 양수인지.
+         - 담보금 금액이 양수인지.
+
+      2) ItemQtyShouldBePositive
+         - 구매 경매의 수량이 양수인지.
+
+      3) ExistingTradingId
+
+      4) NotEnoughBalance
+         - 담보금 or 구매대금 부족
+
+    - 사용하는 내부 커맨드:
+      1) OEV8_CMD_TRADING_PROVIDE_ITEM
+
+*** OEV8_CMD_TRADING_BID_BUYING: 판매경매장터에 구매Bidding 제시
+    - Events
+      1) OEV8_EVT_BALANCE_XFER_FROM
+         1) OEV8_EVT_CAUSE_BALANCE_XFER_FROM_BUYING
+
+      2) OEV8_EVT_TRADING_ORDER_LIMIT_BUY
+
+    - Errors
+      1) CurrencyAmtShouldBePositive
+
+      2) ItemQtyShouldBePositive
+
+      3) TradingIsNotFound
+         - 경매 거래장터가 아닐 때도 발생.
+
+      4) TradingIsNotOpened
+
+      5) NotCertainAuctionSide
+
+      6) UnsatisfyingAuctionBidPrice
+
+      7) UnsupportedOrderOption
+
+      8) NotEnoughBalance
+
+*** OEV8_CMD_TRADING_ASK_SELLING: 구매경매장터에 판매Asking 제시
+    - Events
+      1) OEV8_EVT_BALANCE_XFER_FROM
+         1) OEV8_EVT_CAUSE_BALANCE_XFER_FROM_SECURITY_DEPOSIT
+
+      2) OEV8_EVT_TRADING_ORDER_LIMIT_SELL
+
+      3) OEV8_EVT_TRADING_PROVIDE_ITEM
+
+      4) OEV8_EVT_ITEM_COUNT_XFER_FROM
+
+    - Errors
+      1) CurrencyAmtShouldBePositive
+
+      2) ItemQtyShouldBePositive
+
+      3) TradingIsNotFound
+         - 경매 거래장터가 아닐 때도 발생.
+
+      4) TradingIsNotOpened
+
+      5) NotCertainAuctionSide
+
+      6) UnsatisfyingAuctionAskPrice
+
+      7) UnsupportedOrderOption
+
+      8) NotEnoughBalance
+
+** Tradings and Auctions: Inquiries
+   조회성 커맨드들이기 때문에, 다른 이벤트와 영향은 발생시키지 않는다.
+
+*** OEV8_CMD_LIST_TRADING_ID: 전체 Trading IDs의 목록
+    - (특이사항없음)
+
+*** OEV8_CMD_COUNT_TRADING_ID: 전체 Trading IDs 카운팅
+    - (특이사항없음)
+
+*** OEV8_CMD_TRADING_INFO: Trading 정보
+    - Errors
+      1) TradingIsNotFound
+
+*** OEV8_CMD_LIST_ITEM_PROVIDING: 아이템 제공 목록
+    - Errors
+      1) TradingIsNotFound
+
+*** OEV8_CMD_COUNT_ITEM_PROVIDING: 아이템 제공 카운팅
+    - Errors
+      1) TradingIsNotFound
+
+*** OEV8_CMD_LIST_ORDER: 주문 목록
+    - Errors
+      1) TradingIsNotFound
+
+*** OEV8_CMD_COUNT_ORDER: 주문 카운팅
+    - Errors
+      1) TradingIsNotFound
+
+*** OEV8_CMD_LIST_MATCH: 체결 목록
+    - Errors
+      1) TradingIsNotFound
+
+*** OEV8_CMD_COUNT_MATCH: 체결 카운팅
+    - Errors
+      1) TradingIsNotFound
+
+*** OEV8_CMD_LIST_PRICE: 오더북의 가격대 목록
+    - Errors
+      1) TradingIsNotFound
+
+*** OEV8_CMD_COUNT_PRICE: 오더북의 가격대 카운팅
+    - Errors
+      1) TradingIsNotFound
+
+*** OEV8_CMD_LIST_ORDER_ID_BY_PRICE: 오더북의 특정 가격대에 속한 주문ID 목록
+    - Errors
+      1) TradingIsNotFound
+
+*** OEV8_CMD_COUNT_ORDER_ID_BY_PRICE: 오더북의 특정 가격대에 속한 주문ID 카운팅
+    - Errors
+      1) TradingIsNotFound
+
+*** OEV8_CMD_TRADING_AUCTION_INFO: Auction 정보
+    - Errors
+      1) TradingIsNotFound
+
+
+
+
+* Errors
+  에러 코드별 설명과 에러 타입에 따른 구조는 Protobuf으로 기술되어
+  있지 않으므로 여기에 정리함.
+
+** CodedError
+   1) 대부분의 에러의 기반이 되는 에러 타입.
+
+   2) ~err_code~ :: oev8.proto에 지정된 ErrorCode enum의 값. (Integer)
+      - 다른 CodedError에 기반한 에러들이 모두 이 필드를 기본적으로
+        갖는다.
+
+** UnknownCmdType
+   1) ERR_OEV8_CMD_UNKNOWN
+   2) 알 수 없는, 처리할 수 없는 cmd_type이 지정되었을 때.
+   3) ~cmd_type~ :: 요청된 커맨드 타입. (Integer)
+
+** InvalidCmd
+   1) ERR_OEV8_CMD_INVALID
+   2) 잘못된 커맨드. 단순히 커맨드 타입이 틀린 것이 아니라 커맨드
+      타입과 커맨드 파라미터가 잘못되었을 때.
+   3) ~err_mesg~ :: 에러메시지. (JSON이 아닐)(String)
+
+** UnderMaintMode
+   1) ERR_OEV8_UNDER_MAINT
+   2) 관리모드에서 실행할 수 없는 커맨드를 요청했을 때.
+
+** InternalError
+   1) OeV8 내부 예외 발생.
+   2) ERR_OEV8_INTERNAL_ERROR
+   3) ~err_mesg~ :: 에러메시지. JSON이 아닐 것임. (String)
+
+** ItemQtyShouldBeZeroOrPositive, ItemQtyShouldBePositive
+   1) 제시한 수량이 음수거나 0이면 안되는 상황에 발생.
+   2) ERR_ITEM_QTY_SHOULD_BE_ZERO_OR_POSITIVE
+   3) ERR_ITEM_QTY_SHOULD_BE_POSITIVE
+   4) ~qty~ :: 제시한 수량. (Integer)
+
+** CurrencyAmtShouldBeZeroOrPositive, CurrencyAmtShouldBePositive
+   1) 제시한 금액이 음수거나 0이면 안되는 상황에 발생.
+   2) ERR_CURRENCY_AMT_SHOULD_BE_ZERO_OR_POSITIVE
+   3) ERR_CURRENCY_AMT_SHOULD_BE_POSITIVE
+   4) ~amt~ :: 제시한 금액. (Integer)
+
+** OrderIdNotFound
+   1) 지정한 주문ID이 존재하지 않는다.
+   2) ERR_ORDER_ID_NOT_FOUND
+   3) ~ord_id~ :: 지정한 주문ID. (Integer)
+   4) ~what~ :: OrderMakerTaker으로서 MAKER/TAKER 구분을 하는 문맥에서
+      발생할 때 제시된다. (Integer)
+
+** ExistingOrderId
+   1) 보통은 즉시 발생하지 않고, bug으로서 발생.
+   2) ERR_EXISTING_ORDER_ID
+   3) ~ord_id~ :: 이미 존재하는 주문ID. (Integer)
+
+** NotEnoughItemCount
+   1) 제시된만큼 아이템 보유 수량이 부족하다.
+      - 예: 판매 주문 등록 시 제공할 보유 수량이 부족.
+   2) ERR_NOT_ENOUGH_ITEM_COUNT
+   3) ~cust_id~ :: 요청수량이 부족한 고객. (Integer)
+   4) ~current_qty~, ~requested_qty~ :: 현재 보유수량, 요청된
+      수량. (Integer)
+
+** OrderOfferLineIsFulfilled
+   1) 이미 주문이 fulfilled되어 있다.
+      - 예: 이미 fulfilled 상태이므로 잔여 미체결 수량을 취소할 수
+        없다.
+   2) ERR_ORDER_IS_FULFILLED
+   3) ~ord_id~ :: (Integer) fulfilled된 주문ID.
+
+** OrderOfferLineIsCancelled
+   1) 이미 주문이 cancelled되어 있다.
+      - 예: 이미 취소한 주문이므로 취소할 수 없다.
+   2) ERR_ORDER_IS_CANCELLED
+   3) ~ord_id~ :: (Integer) cancelled된 주문ID.
+
+** TradingIs-...
+   - -NotOpened, -NotPaused, -NotCancellable, -NotCompletable,
+     -NotEvictable, -NotFound, ExistingTrading-Id
+   - 대응 에러코드 :: ERR_TRADING_IS_NOT_OPENED,
+     ERR_TRADING_IS_NOT_PAUSED, ERR_TRADING_IS_NOT_CANCELLABLE,
+     ERR_TRADING_IS_NOT_COMPLETABLE, ERR_TRADING_IS_NOT_EVICTABLE,
+     ERR_TRADING_IS_NOT_FOUND, ERR_EXISTING_TRADING_ID
+
+   - ~trd_id~ :: 해당 Trading/Auction ID. (Integer)
+   - ~current_state~ :: 현재 Trading의 상태. (Integer)
+
+** NotEnoughBalance
+   1) 해당 고객의 화폐종류, balance-or-earning 계좌의 잔액이 부족하여
+      발생.
+   2) ERR_NOT_ENOUGH_BALANCE
+   3) ~balance_type~, ~cust_id~, ~curr~ :: balance-or-earning, 고객ID,
+      화폐종류.
+   4) ~current_amt~, ~requested_amt~ :: 현재 잔액, 요청한 금액.
+
+** NotAnItemProvider
+   1) 아이템 물량 제공자가 아님.
+      - 예: 아이템 물량 제공을 철회하려고 시도할 때.
+   2) ERR_NOT_ITEM_PROVIDER
+   3) ~cust_id~ :: (Integer)
+
+** NotEnoughItemProviding
+   1) 아이템 제공 물량이 부족.
+      - 예: 아이템 물량 제공을 철회하려고 시도할 때, 철회하는 물량보다
+        적게 제공하고 있음.
+
+   2) ERR_NOT_ENOUGH_ITEM_PROVIDING
+   3) ~cust_id~ :: (Integer)
+   4) ~current_qty~, ~requested_qty~ :: (Integer) 현재 제공 물량,
+      그리고 요청한 물량.
+
+** UnsatisfyingAuctionBidPrice
+   1) 경매거래장터의 제한가격보다 더 싸거나(판매경매), 더
+      비싼(구매경매) 가격을 bidding 가격으로 제시했을 때.
+   2) ERR_UNSATISFYING_AUCTION_BID_PRICE
+   3) ~trd_id~ :: (Integer)
+   4) ~auction_price~, ~bid_price~ :: (Integer) 경매거래장터의
+      제한가격과 bidding이 제시한 가격.
+
+** UnsupportedOrderOption
+   1) 지원되지 않는 주문옵션.
+      - 예: Bid-Buying 주문에는 IoC 주문옵션을 지정할 수 없는데
+        지정했을 때.
+   2) ERR_UNSUPPORTED_ORDER_OPTION
+   3) ~trd_id~ :: 거래장터ID. (Integer)
+   4) ~order_option~ :: 지정한 주문옵션. (Integer)
+
+** NotCertainAuctionSide
+   1) 경매거래장터의 타입에 적용할 수 없는 Bidding을 적용했을 때 발생.
+      - 예: 판매경매에 판매Bidding을 제시한다거나.
+   2) ERR_NOT_CERTAIN_AUCTION_SIDE
+   3) ~trd_id~ :: (Integer)
+   4) ~auction_side~ :: (Integer) 경매거래장터의 AuctionSide값.
+      - 판매거래장터라면, AUCTION_SELLING.
+
+
+
+
+* Footnotes

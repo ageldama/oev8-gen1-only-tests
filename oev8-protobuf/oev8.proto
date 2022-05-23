@@ -1,0 +1,1257 @@
+syntax = "proto3";
+
+package oev8_pb;
+
+option go_package = "github.com/ageldama/oev8/oev8pb";
+
+
+// 에러코드.
+enum ErrorCode {
+  ERR_UNKNOWN = 0;
+
+  ERR_ITEM_QTY_SHOULD_BE_ZERO_OR_POSITIVE = 1;
+  ERR_ITEM_QTY_SHOULD_BE_POSITIVE = 2;
+  ERR_CURRENCY_AMT_SHOULD_BE_ZERO_OR_POSITIVE = 3;
+  ERR_CURRENCY_AMT_SHOULD_BE_POSITIVE = 4;
+  ERR_ORDER_ID_NOT_FOUND = 5;
+  ERR_EXISTING_ORDER_ID = 6;
+  ERR_NOT_ENOUGH_ITEM_COUNT = 7;
+  ERR_ORDER_IS_FULFILLED = 8;
+  ERR_ORDER_IS_CANCELLED = 9;
+  ERR_TRADING_IS_NOT_OPENED = 10;
+  ERR_TRADING_IS_NOT_PAUSED = 11;
+  ERR_TRADING_IS_NOT_CANCELLABLE = 12;
+  ERR_TRADING_IS_NOT_COMPLETABLE = 13;
+  ERR_TRADING_IS_NOT_EVICTABLE = 14;
+  ERR_TRADING_IS_NOT_FOUND = 15;
+  ERR_EXISTING_TRADING_ID = 16;
+  ERR_NOT_ENOUGH_BALANCE = 17;
+  ERR_NOT_ITEM_PROVIDER = 18;
+  ERR_NOT_ENOUGH_ITEM_PROVIDING = 19;
+  ERR_UNSATISFYING_AUCTION_BID_PRICE = 20;
+  ERR_UNSUPPORTED_ORDER_OPTION = 21;
+  ERR_NOT_CERTAIN_AUCTION_SIDE = 22;
+  ERR_UNSATISFYING_AUCTION_ASK_PRICE = 23;
+
+  ERR_OEV8_INTERNAL_ERROR = 100;
+  ERR_OEV8_CMD_UNKNOWN = 101;
+  ERR_OEV8_CMD_INVALID = 102;
+  ERR_OEV8_UNDER_MAINT = 103;
+  ERR_OEV8_TIMEOUT = 104;
+}
+
+// 예약된 고객번호.
+// SVC_CUST_ID = "0";  // Service Customer.
+
+// 예약된 통화타입.
+enum CurrencyType {
+  CURRENCY_NONE = 0;
+  CURRENCY_KRW = 1;
+  CURRENCY_BTC = 2;
+  CURRENCY_ETH = 3;
+}
+
+// 거래타입.
+enum TradingType {
+  TRADING_UNKNOWN = 0;
+
+  // 거래소.
+  TRADING_EXCHANGE = 1;
+
+  // 경매장.
+  TRADING_AUCTION = 2;
+}
+
+enum TradingState {
+  TRADING_STATE_NONE = 0;
+  TRADING_STATE_OPENED = 1;        // 거래중
+  TRADING_STATE_HOURS_ENDED = 2;   // 판매완료
+  TRADING_STATE_ON_DELIVERY = 3;   // 배송중
+  TRADING_STATE_FINISHED = 4;      // 정산완료
+  TRADING_STATE_PAUSED = 5;        // 일시정지
+  TRADING_STATE_CANCELLED = 10;     // 취소됨
+}
+
+enum OrderSide {
+  SIDE_UNKNOWN = 0;
+  SIDE_BUY = 1;    // 구매 주문.
+  SIDE_SELL = 2;   // 판매 주문.
+}
+
+enum OrderType {
+  ORDER_TYPE_UNKNOWN = 0;
+  ORDER_TYPE_LIMIT = 1;    // Limit주문.
+  ORDER_TYPE_MARKET = 2;   // Market주문.
+}
+
+enum OrderOption {
+  ORDER_OPTION_NONE = 0;                 // 주문옵션 없음.
+  ORDER_OPTION_IMMEDIATE_OR_CANCEL = 1;  // IoC
+  ORDER_OPTION_FILL_OR_KILL = 2;         // FoK
+}
+
+enum OrderMakerTaker {
+  ORDER_NONE = 0;
+  ORDER_MAKER = 1;
+  ORDER_TAKER = 2;
+}
+
+
+enum OrderState {
+  ORDER_STATE_NONE = 0;
+  ORDER_STATE_ACTIVE = 1;       // 거래중.
+  ORDER_STATE_FULFILLED = 2;    // 모두 거래했거나(qty=0), 거래 중단(qty>0).
+  // 부분 체결된 상태에서 나머지 잔여 매칭을 중단. (cancel-remaining)
+  ORDER_STATE_STOPPED = 3;
+  ORDER_STATE_CANCELLED = 10;    // 취소됨. 관련 거래들 모두 취소.
+}
+
+
+enum BalanceType {
+  BALANCE_UNKNOWN = 0;
+  BALANCE_JUST = 1;      // 입출금 계좌.
+  BALANCE_EARNING = 2;   // 수익 계좌 : 이후 입출금 계좌로
+                         //           이체되어야함.
+}
+
+
+
+enum AuctionSide {
+  AUCTION_UNKNOWN = 0;
+  AUCTION_BUYING = 1;   // 구매경매 : 가장 싸게 팔겠다는 주문들과 매칭.
+  AUCTION_SELLING = 2;  // 판매경매 : 가장 비싸게 사겠다는 주문들과 매칭.
+}
+
+
+
+enum Oev8_Versions {
+  option allow_alias = true;
+
+  OEV8_VER_ZERO = 0;
+
+  OEV8_VER_1_000 = 1000;  // 2020-May-21.
+
+  OEV8_VER_CUR = 1000;    // 현재 버젼.
+}
+
+
+// 커맨드 종류.
+enum Oev8_CmdType {
+  OEV8_CMD_NOPE = 0;  // 사용하지 않음.
+
+  OEV8_CMD_SNAPSHOT = 1;      // 스냅샷 기록.
+  OEV8_CMD_SHUTDOWN = 2;     // 스냅샷 기록 없이 바로 종료.
+  OEV8_CMD_ENTER_MAINT = 3;  // 관리모드 enter.
+  OEV8_CMD_LEAVE_MAINT = 4;  // 관리모드 exit.
+  OEV8_CMD_SAVE_QUIT = 5;    // 스냅샷 기록 후 종료.
+  OEV8_CMD_PING = 6;         // Ping.
+  OEV8_CMD_SLEEP = 7;        // 지정한 secs만큼 sleep.
+
+  // Balance and Earning.
+  OEV8_CMD_BALANCE_GET = 100;        // 고객-화폐 타입별 조회.
+  OEV8_CMD_BALANCE_DEPOSIT = 101;    // 고객에 입금.
+  OEV8_CMD_BALANCE_WITHDRAW = 102;   // 고객에서 출금.
+  OEV8_CMD_BALANCE_DELETE_BY_CURRENCY = 103;  // 특정 화폐타입의 계좌 모두 지우기.
+  OEV8_CMD_BALANCE_DELETE_BY_CUSTOMER = 104;  // 특정 고객의 계좌 모두 지우기.
+  OEV8_CMD_BALANCE_XFER_FROM = 105;    // 특정 고객의 계좌에서 서비스 계정으로 이체.
+  OEV8_CMD_BALANCE_XFER_TO = 106;      // 특정 고객의 계좌로 서비스 계정에서 이체.
+  OEV8_CMD_BALANCE_CVT_XFER_TO = 107;  // 서비스 계정의 balance/earning에서 특정 고객에게
+                                       // ...balance/earning으로 전환하여 이체.
+
+  // Item Count.
+  OEV8_CMD_ITEM_COUNT_GET = 200;  // 고객의 Qty을 조회.
+  OEV8_CMD_ITEM_COUNT_INC = 201;  // 고객의 Qty을 증가.
+  OEV8_CMD_ITEM_COUNT_DEC = 202;  // 고객의 Qty을 감소.
+  OEV8_CMD_ITEM_COUNT_DELETE_BY_TRADING = 203;  // 특정 Trading에 속한 Qty 정보를 모두 소거.
+  OEV8_CMD_ITEM_COUNT_DELETE_BY_CUSTOMER = 204; // 특정 고객의 Qty 정보를 모두 소거.
+  OEV8_CMD_ITEM_COUNT_XFER_FROM = 205;  // 특정 고객으로부터 서비스 계정으로 이체.
+  OEV8_CMD_ITEM_COUNT_XFER_TO = 206;    // 특정 고객에게 서비스 계정으로부터 이체.
+
+  // Tradings and Auctions.
+  OEV8_CMD_TRADING_NEW = 300;  // 새로운 Trading Exchange 거래장터 시작.
+  OEV8_CMD_TRADING_JOIN = 301;    // 거래 중인 Trading Exchange에 물량 제공하여 참여.
+  OEV8_CMD_TRADING_RESUME = 302;  // 일시중지한 거래장터를 재개.
+  OEV8_CMD_TRADING_PAUSE = 303;   // 거래장터를 일시중지.
+  OEV8_CMD_TRADING_FINALIZE = 304;  // 거래장터를 정산처리.
+  OEV8_CMD_TRADING_CANCEL = 305;    // 거래장터를 취소처리.
+  OEV8_CMD_TRADING_EVICT = 306;     // 거래장터 데이터를 메모리에서 소거.
+  OEV8_CMD_TRADING_UNTIL = 307;     // 거래장터의 정산시점 조회-or-설정.
+  OEV8_CMD_TRADING_PROVIDE_ITEM = 308;    // 거래장터에 특정 고객이 아이템 물량 제공.
+  OEV8_CMD_TRADING_UNPROVIDE_ITEM = 309;  // 거래장터에 특정 고객 제공 아이템 물량을 철회.
+  OEV8_CMD_TRADING_ORDER_LIMIT_SELL = 310;  // Exchange 거래장터에 Limit-Sell 주문.
+  OEV8_CMD_TRADING_ORDER_LIMIT_BUY = 311;   // Exchange 거래장터에 Limit-Buy 주문.
+  OEV8_CMD_TRADING_ORDER_MARKET_SELL = 312; // Exchange 거래장터에 Market-Sell 주문.
+  OEV8_CMD_TRADING_ORDER_MARKET_BUY = 313;  // Exchange 거래장터에 Market-Buy 주문.
+  OEV8_CMD_TRADING_ORDER_CANCEL_REMAINING = 314;  // Exchange, Auction 거래장터 주문을 취소.
+  OEV8_CMD_TRADING_NEW_SELLING_AUCTION = 315;   // 새로운 판매 Auction 거래장터를 시작.
+  OEV8_CMD_TRADING_BID_BUYING = 316;  // 판매 Auction 거래장터에 구매 Bidding 제시.
+  OEV8_CMD_TRADING_NEW_BUYING_AUCTION = 317;   // 새로운 구매 Auction 거래장터를 시작.
+  OEV8_CMD_TRADING_ASK_SELLING = 318;  // 구매 Auction 거래장터에 판매 Asking 제시.
+
+  // Tradings and Auctions: Inquiries.
+  OEV8_CMD_LIST_TRADING_ID = 350;  // 전체 Trading IDs의 목록.
+  OEV8_CMD_COUNT_TRADING_ID = 351;  // 전체 Trading IDs 카운팅.
+  OEV8_CMD_TRADING_INFO = 352;          // Trading 정보.
+  OEV8_CMD_LIST_ITEM_PROVIDING = 353;   // 아이템 제공 목록.
+  OEV8_CMD_COUNT_ITEM_PROVIDING = 354;  // 아이템 제공 카운팅.
+  OEV8_CMD_LIST_ORDER = 355;   // 주문 목록.
+  OEV8_CMD_COUNT_ORDER = 356;  // 주문 카운팅.
+  OEV8_CMD_LIST_MATCH = 357;   // 체결 목록.
+  OEV8_CMD_COUNT_MATCH = 358;  // 체결 카운팅.
+  OEV8_CMD_LIST_PRICE = 359;   // 오더북의 가격대 목록.
+  OEV8_CMD_COUNT_PRICE = 360;  // 오더북의 가격대 카운팅.
+  OEV8_CMD_LIST_ORDER_ID_BY_PRICE = 361;    // 오더북의 특정 가격대에 속한 주문ID 목록.
+  OEV8_CMD_COUNT_ORDER_ID_BY_PRICE = 362;   // 오더북의 특정 가격대에 속한 주문ID 카운팅.
+  OEV8_CMD_TRADING_AUCTION_INFO = 363;  // Auction 정보.
+}
+
+
+// 이벤트 종류.
+enum Oev8_EvtType {
+  OEV8_EVT_NOPE = 0;  // 사용하지않음.
+
+  OEV8_EVT_SNAPSHOT = 1;   // 스냅샷 생성.
+  OEV8_EVT_SHUTDOWN = 2;   // 종료.
+  OEV8_EVT_ENTER_MAINT = 3;  // 관리모드진입.
+  OEV8_EVT_LEAVE_MAINT = 4;  // 관리모드종료.
+
+  // Balances/Earnings
+  OEV8_EVT_BALANCE_DEPOSIT = 100;   // 입금.
+  OEV8_EVT_BALANCE_WITHDRAW = 101;  // 출금.
+  OEV8_EVT_BALANCE_XFER_FROM = 102;  // 고객계정->서비스계정으로 이체.
+  OEV8_EVT_BALANCE_XFER_TO = 103;    // 고객계정<-서비스계정에서 이체.
+  OEV8_EVT_BALANCE_CVT_XFER_TO = 104;  // 서비스계정->고객계정으로 전환 이체.
+  OEV8_EVT_BALANCE_DELETE_BY_CURRENCY = 105; // 특정 화폐타입의 정보 소거.
+  OEV8_EVT_BALANCE_DELETE_BY_CUSTOMER = 106; // 특정 고객의 정보 소거.
+
+  // Item Count
+  OEV8_EVT_ITEM_COUNT_INC = 200;  // 특정 고객의 아이템 보유 증가.
+  OEV8_EVT_ITEM_COUNT_DEC = 201;  // 특정 고객의 아이템 보유 감소.
+  OEV8_EVT_ITEM_COUNT_XFER_FROM = 202; // 고객계정->서비스계정으로 이전.
+  OEV8_EVT_ITEM_COUNT_XFER_TO = 203;   // 고객계정<-서비스계정에서 이전.
+  OEV8_EVT_ITEM_COUNT_DELETE_BY_TRADING = 204;  // 특정 거래장터의 아이템 정보 소거.
+  OEV8_EVT_ITEM_COUNT_DELETE_BY_CUSTOMER = 205; // 특정 고객의 아이템 정보 소거.
+
+  // Tradings and Auctions
+  OEV8_EVT_TRADING_NEW = 300;  // 새로운 Trading -or- Auction 시작됨.
+  OEV8_EVT_TRADING_RESUME = 301;  // 거래장터 재개됨.
+  OEV8_EVT_TRADING_PAUSE = 302;   // 거래장터 일시중지됨.
+  OEV8_EVT_TRADING_FINALIZED = 303;  // 거래장터 정산처리됨.
+  OEV8_EVT_TRADING_EVICTED = 304;    // 거래장터 정보 소거됨.
+  OEV8_EVT_TRADING_CANCELLED = 305;  // 거래장터 취소.
+  OEV8_EVT_TRADING_ORDER_MATCHED = 306;  // 주문 체결됨.
+  OEV8_EVT_TRADING_PROVIDE_ITEM = 307;   // 거래장터에 아이템 물량 제공시.
+  OEV8_EVT_TRADING_UNPROVIDE_ITEM = 308; // 거래장터에 아이템 물량 제공철회시.
+  OEV8_EVT_TRADING_ORDER_LIMIT_SELL = 309;  // Limit-Sell 주문 제시.
+  OEV8_EVT_TRADING_ORDER_LIMIT_BUY = 310;   // Limit-Buy 주문 제시 -or- Buy-Bidding 제시됨.
+  OEV8_EVT_TRADING_ORDER_MARKET_SELL = 311;  // Market-Sell 주문 제시.
+  OEV8_EVT_TRADING_ORDER_MARKET_BUY = 312;   // Market-Buy 주문 제시.
+  OEV8_EVT_TRADING_ORDER_CANCEL_REMAINING = 313;  // 제시한 주문을 취소.
+}
+
+
+// 이벤트별 발생원인 구분
+enum Oev8_EvtCauseType {
+  OEV8_EVT_CAUSE_NONE = 0;  // 사용않음.
+  OEV8_EVT_CAUSE_CLOCKWORK = 1;  // Clockwork에 의해 자동으로 발생됨.
+  OEV8_EVT_CAUSE_ADMIN = 2;      // 관리자에 의해 직접 발생됨.
+
+  // Balances and Earnings
+  OEV8_EVT_CAUSE_BALANCE_DEPOSIT_DEPOSIT = 100;  // 입금.
+  OEV8_EVT_CAUSE_BALANCE_WITHDRAW_WITHDRAW = 101;  // 출금.
+  OEV8_EVT_CAUSE_BALANCE_CVT_XFER_TO_EARNING_PREP = 102;  // 판매수익 발생.
+  OEV8_EVT_CAUSE_BALANCE_XFER_TO_REFUND_UNMATCHED_LIMIT_BUY = 103;  // 미체결 구매주문 비용 환불.
+  OEV8_EVT_CAUSE_BALANCE_XFER_TO_CANCEL_TRADING = 104;  // 거래장터 취소로 환불.
+  OEV8_EVT_CAUSE_BALANCE_XFER_FROM_BUYING = 105;  // 구매 주문 제시로 출금됨.
+  OEV8_EVT_CAUSE_BALANCE_XFER_FROM_SECURITY_DEPOSIT = 106;  // security deposit 제시로 출금됨.
+  OEV8_EVT_CAUSE_BALANCE_XFER_FROM_BUYING_AUCTION = 107;  // 구매 경매 제시로 출금됨.
+
+  // Item Count
+  OEV8_EVT_CAUSE_ITEM_COUNT_XFER_TO_BUYING = 200;  // 구매 체결으로 아이템 보유 증가.
+  OEV8_EVT_CAUSE_ITEM_COUNT_XFER_FROM_SELLING = 201;  // 판매 주문 제시로 아이템 보유 감소.
+  OEV8_EVT_CAUSE_ITEM_COUNT_XFER_FROM_SELLING_AUCTION = 202;  // 판매 경매 시작으로 아이템 보유 감소.
+
+  // Tradings and Auctions
+  OEV8_EVT_CAUSE_TRADING_ORDER_CANCEL_USER_CANCEL = 300;  // 주문이 사용자에 의해 취소됨.
+  // 주문이 잔고 부족으로 취소됨. (Market-Buy시에만 발생)
+  OEV8_EVT_CAUSE_TRADING_ORDER_CANCEL_NOT_ENOUGH_BALANCE = 301;
+  OEV8_EVT_CAUSE_TRADING_ORDER_CANCEL_FOK = 302;  // FoK 주문옵션에 의해 취소됨.
+  OEV8_EVT_CAUSE_TRADING_ORDER_CANCEL_IOC = 303;  // IoC 주문옵션에 의해 취소됨.
+  OEV8_EVT_CAUSE_TRADING_ORDER_CANCEL_TIMED_OUT = 304;  // 주문이 지정한 시간을 초과해 취소됨.
+                                                        // (사용안함)
+}
+
+
+// CmdReq: 커맨드 요청의 파라미터.
+
+message Oev8_CmdReq_BalanceGet {// 계좌 금액 조회.
+  // balance -or- earning.
+  BalanceType balance_type = 1;
+  CurrencyType curr = 2;  // 화폐종류.
+  string cust_id = 3;  // 고객.
+}
+
+message Oev8_CmdReq_BalanceDeposit {// 입금 요청.
+  // balance -or- earning
+  BalanceType balance_type = 1;
+  CurrencyType curr = 2; // 화폐종류.
+  string cust_id = 3;  // 입금 대상 고객.
+  string amt = 4;  // 입금할 금액.
+}
+
+message Oev8_CmdReq_BalanceWithdraw {// 출금 요청.
+  BalanceType balance_type = 1;
+  CurrencyType curr = 2;
+  string cust_id = 3;  // 출금 대상 고객.
+  string amt = 4;  // 출금할 금액.
+}
+
+message Oev8_CmdReq_BalanceXferFrom {// 고객->서비스계정 이체.
+  BalanceType balance_type = 1;
+  CurrencyType curr = 2;
+  string cust_id = 3;  // 출금대상 고객.
+  string amt = 4;  // 금액.
+}
+
+message Oev8_CmdReq_BalanceXferTo {// 고객<-서비스계정 이체.
+  BalanceType balance_type = 1;
+  CurrencyType curr = 2;
+  string cust_id = 3;  // 입금대상 고객.
+  string amt = 4;  // 금액.
+}
+
+message Oev8_CmdReq_BalanceCvtXferTo {// 고객<-서비스계정 전환 이체.
+  BalanceType from_balance_type = 1;  // 서비스계정의 balance/earning
+  BalanceType to_balance_type = 2;  // 고객의 balance/earning
+  CurrencyType curr = 3;
+  string cust_id = 4;  // 입금 받을 고객.
+  string amt = 5;  // 전환 이체할 금액.
+}
+
+message Oev8_CmdReq_BalanceDeleteByCurrency {
+  // balance and earning 정보를 삭제할 화폐 종류 타입.
+  CurrencyType curr = 1;
+}
+
+message Oev8_CmdReq_BalanceDeleteByCustomer {
+  // balance and earning 정보를 삭제할 고객 번호.
+  string cust_id = 1;
+}
+
+message Oev8_CmdReq_ItemCountGet {
+  // 아이템 보유 수량 조회.
+  string cust_id = 1;  // 고객.
+  string trd_id = 2;   // 거래장터.
+}
+
+message Oev8_CmdReq_ItemCountInc {
+  // 아이템 보유 수량 증가.
+  string cust_id = 1;
+  string trd_id = 2;
+  uint64 qty = 3;  // 증가할 수량. (delta)
+}
+
+message Oev8_CmdReq_ItemCountDec {
+  // 아이템 보유 수량 감소.
+  string cust_id = 1;
+  string trd_id = 2;
+  uint64 qty = 3;  // 감소할 수량. (delta)
+}
+
+message Oev8_CmdReq_ItemCountDeleteByTrading {
+  // 아이템 보유 수량 정보를 특정 거래에 대해 모두 삭제.
+  string trd_id = 1;
+}
+
+message Oev8_CmdReq_ItemCountDeleteByCustomer {
+  // 아이템 보유 수량 정보를 특정 고객에 대해 모두 삭제.
+  string cust_id = 1;
+}
+
+message Oev8_CmdReq_ItemCountXferFrom {
+  // 아이템: 고객->서비스계정으로 이체.
+  string cust_id = 1;
+  string trd_id = 2;
+  uint64 qty = 3;  // 이체할 수량. (delta)
+}
+
+message Oev8_CmdReq_ItemCountXferTo {
+  // 아이템: 고객<-서비스계정에서 이체.
+  string cust_id = 1;
+  string trd_id = 2;
+  uint64 qty = 3;  // 이체할 수량. (delta)
+}
+
+message Oev8_CmdReq_TradingNew {
+  // 새로운 Trading Exchange 개시: 바로 시작 상태로 시작.
+
+  // 사용할 화폐종류.
+  CurrencyType curr = 1;
+
+  // 거래소 시작 고객.
+  string cust_id = 2;
+
+  // 거래장터 ID.
+  string trd_id = 3;
+
+  // 이체할 Security Deposit 금액.
+  string sec_deposit_amt = 4;
+
+  // 처음 Limit-Sell 제시할 물량과 가격.
+  string price = 5;
+  uint64 qty = 6;
+
+  // Clockwork에 의해 Finalize될 시각. (UTC Timestamp 초단위)
+  uint64 until_utc_timestamp_secs = 7;
+}
+
+message Oev8_CmdReq_TradingJoin {
+  // 이미 존재하는 Trading Exchange에 물량을 제시하며 참가.
+
+  // .. TradingNew와는 달리 자동으로 Limit-Sell을 주문하지 않으므로
+  // .. 직접해야한다.
+  string cust_id = 1;
+  string trd_id = 2;
+  string sec_deposit_amt = 3; // 이체할 담보금.
+  uint64 qty = 4;
+}
+
+message Oev8_CmdReq_TradingResume {
+  // 거래장터(Trading and Auction)를 일시정지 해제.
+  string trd_id = 1;
+}
+
+message Oev8_CmdReq_TradingPause {
+  // 거래장터(Trading and Auction)를 일시정지.
+  string trd_id = 1;
+}
+
+message Oev8_CmdReq_TradingFinalize {
+  // 거래장터(Trading and Auction)를 정산처리.
+  string trd_id = 1;
+}
+
+message Oev8_CmdReq_TradingCancel {
+  // 거래장터(Trading and Auction)를 취소.
+  string trd_id = 1;
+}
+
+message Oev8_CmdReq_TradingEvict {
+  // 거래장터(Trading and Auction)정보를 소거.
+  // 이미 취소/정산된 거래장터이어야함.
+  string trd_id = 1;
+}
+
+message Oev8_CmdReq_TradingUntil {
+  // 정산 시각 변경-or-조회
+  string trd_id = 1;
+  // Clockwork에 의해 finalize될 시각. (UTC Timestamp 초단위)
+  uint64 until_utc_timestamp_secs = 2;  // 0 for get value.
+}
+
+message Oev8_CmdReq_TradingProvideItem {
+  // 아이템 물량 제공: 보통은 직접 사용할 필요 없이, 거래장터 시작시
+  // 자동으로 이루어진다.
+  string cust_id = 1;
+  string trd_id = 2;
+  uint64 qty = 3;  // 제공할 물량 (delta)
+}
+
+message Oev8_CmdReq_TradingUnprovideItem {
+  // 아이템 물량 제공 철회: 보통은 직접 사용할 필요가 없음.
+  string cust_id = 1;
+  string trd_id = 2;
+  uint64 qty = 3;  // 철회할 물량 (delta)
+}
+
+message Oev8_CmdReq_TradingOrderLimitSell {
+  // Limit-Sell 주문.
+
+  // NOTE: Intentionally DELETED
+}
+
+message Oev8_CmdReq_TradingOrderLimitBuy {
+  // Limit-Buy 주문.
+
+  // NOTE: Intentionally DELETED
+}
+
+message Oev8_CmdReq_TradingOrderMarketSell {
+  // Market-Sell 주문.
+
+  // NOTE: Intentionally DELETED
+
+  // IoC을 지정하지 않아도 시장가 주문은 즉시 체결되지 않은 물량은
+  // 취소 처리되므로.
+}
+
+message Oev8_CmdReq_TradingOrderMarketBuy {
+  // NOTE: Intentionally DELETED
+
+  // IoC을 지정하지 않아도 시장가 주문은 즉시 체결되지 않은 물량은
+  // 취소 처리되므로.
+}
+
+message Oev8_CmdReq_TradingOrderCancelRemaining {
+  // 체결되지 않은 주문량을 취소.
+  string trd_id = 1;
+  string ord_id = 2;  // 취소할 주문ID.
+}
+
+message Oev8_CmdReq_TradingListId {
+  uint64 offset = 1; // offset, 0부터 시작.
+  uint64 limit = 2;  // 몇개씩.
+}
+
+message Oev8_CmdReq_TradingGetInfo {
+  string trd_id = 1;
+}
+
+message Oev8_CmdReq_TradingGetAuctionInfo {
+  string trd_id = 1;
+}
+
+message Oev8_CmdReq_TradingListItemProviding {
+  uint64 offset = 1;  // 0부터 시작.
+  uint64 limit = 2;  // 몇개씩.
+
+  string trd_id = 3;
+}
+
+message Oev8_CmdReq_TradingCountItemProviding{
+  string trd_id = 1;
+}
+
+message Oev8_CmdReq_TradingListOrder {
+  uint64 offset = 1;
+  uint64 limit = 2;
+
+  string trd_id = 3;
+}
+
+message Oev8_CmdReq_TradingCountOrder {
+  string trd_id = 1;
+}
+
+message Oev8_CmdReq_TradingListMatch {
+  uint64 offset = 1;
+  uint64 limit = 2;
+
+  string trd_id = 3;
+}
+
+message Oev8_CmdReq_TradingCountMatch {
+  string trd_id = 1;
+}
+
+message Oev8_CmdReq_TradingListPrice {
+  uint64 offset = 1;
+  uint64 limit = 2;
+
+  string trd_id = 3;
+  OrderSide order_side = 4;
+}
+
+message Oev8_CmdReq_TradingCountPrice {
+  string trd_id = 1;
+  OrderSide order_side = 2;
+}
+
+message Oev8_CmdReq_TradingListOrderByPrice {
+  uint64 offset = 1;
+  uint64 limit = 2;
+
+  string trd_id = 3;
+  OrderSide order_side = 4;
+  string price = 5;
+}
+
+message Oev8_CmdReq_TradingCountOrderByPrice {
+  string trd_id = 1;
+  OrderSide order_side = 2;
+  string price = 3;
+}
+
+message Oev8_CmdReq_Sleep {
+  uint32 seconds = 1; // Sleep할 초.
+}
+
+message Oev8_CmdReq_TradingNewSellingAuction {
+  // 새로운 "판매" 경매 장터를 시작.
+  string trd_id = 1;
+  CurrencyType curr = 2;
+  string cust_id = 3;
+  string price = 4;  // 최소 구매가격. (하한)
+  uint64 qty = 5;    // 판매수량.
+  string security_deposit_amt = 6;  // 담보금.
+  uint64 until_utc_timestamp_secs = 7;  // 정산시점.
+}
+
+message Oev8_CmdReq_TradingBidBuying {
+  // 구매: "판매" 경매에 bidding 제시.
+  string trd_id = 1;  // 대상 판매 auction 거래장터 ID.
+  string cust_id = 2;
+  string price = 3;  // bidding 가격.
+  uint64 qty = 4;    // 구매 수량.
+  OrderOption option = 5;
+  // 주문옵션: None, FoK만 가능.
+  // ..IoC은 의미가 없이, 정산시 한번에 모두 체결처리되므로.
+}
+
+message Oev8_CmdReq_TradingNewBuyingAuction {
+  // 새로운 "구매" 경매 장터를 시작.
+
+  // NOTE: Intentionally DELETED
+}
+
+message Oev8_CmdReq_TradingAskSelling {
+  // 판매: "구매" 경매에 ask 제시.
+  // NOTE: Intentionally DELETED
+  // 주문옵션: None, FoK만 가능.
+  // ..IoC은 의미가 없이, 정산시 한번에 모두 체결처리되므로.
+}
+
+
+
+message Oev8_CommandRequest {  // 요청.
+  Oev8_CmdType cmd_type = 1;
+
+  // SEE: (Python) https://docs.python.org/3/library/uuid.html#uuid.UUID.bytes
+  // SEE: (Go) https://godoc.org/github.com/google/uuid#UUID
+  bytes cmd_uuid = 2;
+
+  oneof req_body {
+    Oev8_CmdReq_BalanceGet balance_get = 10;
+    Oev8_CmdReq_BalanceDeposit balance_deposit = 11;
+    Oev8_CmdReq_BalanceWithdraw balance_withdraw = 12;
+    Oev8_CmdReq_BalanceXferFrom balance_xfer_from = 13;
+    Oev8_CmdReq_BalanceXferTo balance_xfer_to = 14;
+    Oev8_CmdReq_BalanceCvtXferTo balance_cvt_xfer_to = 15;
+    Oev8_CmdReq_BalanceDeleteByCurrency balance_delete_by_currency = 16;
+    Oev8_CmdReq_BalanceDeleteByCustomer balance_delete_by_customer = 17;
+    Oev8_CmdReq_ItemCountGet item_count_get = 18;
+    Oev8_CmdReq_ItemCountInc item_count_inc = 19;
+    Oev8_CmdReq_ItemCountDec item_count_dec = 20;
+    Oev8_CmdReq_ItemCountDeleteByTrading item_count_delete_by_trading = 21;
+    Oev8_CmdReq_ItemCountDeleteByCustomer item_count_delete_by_customer = 22;
+    Oev8_CmdReq_ItemCountXferFrom item_count_xfer_from = 23;
+    Oev8_CmdReq_ItemCountXferTo item_count_xfer_to = 24;
+    Oev8_CmdReq_TradingNew trading_new = 25;
+    Oev8_CmdReq_TradingJoin trading_join = 26;
+    Oev8_CmdReq_TradingResume trading_resume = 27;
+    Oev8_CmdReq_TradingPause trading_pause = 28;
+    Oev8_CmdReq_TradingFinalize trading_finalize = 29;
+    Oev8_CmdReq_TradingCancel trading_cancel = 30;
+    Oev8_CmdReq_TradingEvict trading_evict = 31;
+    Oev8_CmdReq_TradingUntil trading_until = 32;
+    Oev8_CmdReq_TradingProvideItem trading_provide_item = 33;
+    Oev8_CmdReq_TradingUnprovideItem trading_unprovide_item = 34;
+    Oev8_CmdReq_TradingOrderLimitSell trading_order_limit_sell = 35;
+    Oev8_CmdReq_TradingOrderLimitBuy trading_order_limit_buy = 36;
+    Oev8_CmdReq_TradingOrderMarketSell trading_order_market_sell = 37;
+    Oev8_CmdReq_TradingOrderMarketBuy trading_order_market_buy = 38;
+    Oev8_CmdReq_TradingOrderCancelRemaining trading_order_cancel_remaining = 39;
+    Oev8_CmdReq_TradingListId trading_list_id = 40;
+    Oev8_CmdReq_TradingGetInfo trading_get_info = 41;
+    Oev8_CmdReq_TradingListItemProviding trading_list_item_providing = 42;
+    Oev8_CmdReq_TradingCountItemProviding trading_count_item_providing = 43;
+    Oev8_CmdReq_TradingListOrder trading_list_order = 44;
+    Oev8_CmdReq_TradingCountOrder trading_count_order = 45;
+    Oev8_CmdReq_TradingListMatch trading_list_match = 46;
+    Oev8_CmdReq_TradingCountMatch trading_count_match = 47;
+    Oev8_CmdReq_TradingListPrice trading_list_price = 48;
+    Oev8_CmdReq_TradingCountPrice trading_count_price = 49;
+    Oev8_CmdReq_TradingListOrderByPrice trading_list_order_by_price = 50;
+    Oev8_CmdReq_TradingCountOrderByPrice trading_count_order_by_price = 51;
+    Oev8_CmdReq_TradingGetAuctionInfo trading_get_auction_info = 52;
+    Oev8_CmdReq_TradingNewSellingAuction trading_new_selling_auction = 53;
+    Oev8_CmdReq_TradingBidBuying trading_bid_buying = 54;
+    Oev8_CmdReq_TradingNewBuyingAuction trading_new_buying_auction = 55;
+    Oev8_CmdReq_TradingAskSelling trading_ask_selling = 56;
+
+    Oev8_CmdReq_Sleep sys_sleep = 100;
+  }
+}
+
+// CmdResp: 커맨드 응답의 구조.
+message Oev8_CmdResp_BalanceGet {
+  // 계좌 금액 조회.
+  string amt = 1;  // 잔고.
+}
+
+message Oev8_CmdResp_BalanceDeposit {
+  // 입금.
+  string new_amt = 1;  // 입금 후 새로운 잔고.
+}
+
+message Oev8_CmdResp_BalanceWithdraw {
+  // 출금.
+  string new_amt = 1;  // 출금 후 새로운 잔고.
+}
+
+message Oev8_CmdResp_BalanceXferFrom {
+  // 고객->서비스계정 이체.
+  string new_amt = 1;  // 이체 후 고객의 잔고.
+  string new_svc = 2;  // 이체 후 서비스계정의 잔고.
+}
+
+message Oev8_CmdResp_BalanceXferTo {
+  // 고객<-서비스계정 이체.
+  string new_amt = 1;  // 이체 후 고객의 잔고.
+  string new_svc = 2;  // 이체 후 서비스계정의 잔고.
+}
+
+message Oev8_CmdResp_BalanceCvtXferTo {
+  // 고객<-서비스계정의 전환이체.
+  string new_amt = 1;  // 이체 후 고객의 잔고.
+  string new_svc = 2;  // 이체 후 서비스계정의 잔고.
+}
+
+message Oev8_CmdResp_ItemCountGet {
+  uint64 qty = 1;  // 고객의 아이템 보유 수량.
+}
+
+message Oev8_CmdResp_ItemCountInc {
+  uint64 qty = 1;  // 고객의 아이템 보유 수량.
+}
+
+message Oev8_CmdResp_ItemCountDec {
+  uint64 qty = 1;  // 고객의 아이템 보유 수량.
+}
+
+message Oev8_CmdResp_ItemCountXferFrom {
+  uint64 new_qty = 1;  // 이체 후 고객 아이템 수량.
+  uint64 new_svc = 2;  // 이체 후 서비스계정 아이템 수량.
+}
+
+message Oev8_CmdResp_ItemCountXferTo {
+  uint64 new_qty = 1;  // 이체 후 고객 아이템 수량.
+  uint64 new_svc = 2;  // 이체 후 서비스계정 아이템 수량.
+}
+
+message Oev8_CmdResp_TradingNew {
+  string ord_id = 1;  // Limit-Sell한 주문 ID.
+}
+
+message Oev8_CmdResp_TradingNewSellingAuction {
+  string trd_id = 1;
+}
+
+message Oev8_CmdResp_TradingNewBuyingAuction {
+  string trd_id = 1;
+}
+
+message Oev8_CmdResp_TradingProvideItem {
+  uint64 qty = 1;  // 제공으로 인해 늘어난 해당 고객의 전체 제공 수량.
+}
+
+message Oev8_CmdResp_TradingUnprovideItem {
+  uint64 qty = 1;  // 제공철회으로 줄어든 해당 고객의 전체 제공 수량.
+}
+
+message Oev8_CmdResp_TradingOrderNew {
+  // Limit/Market - Buy/Sell 주문의 응답.
+  string ord_id = 1;  // 새 주문ID.
+}
+
+message Oev8_CmdResp_TradingUntil {
+  string trd_id = 1;
+  // 조회한, 혹은 새롭게 설정한 정산 시각.
+  uint64 until_utc_timestamp_secs = 2;
+  bool updated = 3;  // 조회가 아닌 갱신일 경우에 참.
+}
+
+message Oev8_CmdResp_TradingListId {
+  repeated string trd_ids = 1;
+}
+
+message Oev8_CmdResp_TradingCountId {
+  uint64 count = 1;
+}
+
+message Oev8_CmdResp_TradingGetInfo {
+  TradingState state = 1;
+  CurrencyType curr = 2;
+  TradingType trading_type = 3;
+}
+
+message Oev8_CmdResp_TradingGetAuctionInfo {
+  string cust_id = 1;
+  string price = 2;
+  uint64 qty = 3;
+  AuctionSide auction_side = 4;
+}
+
+message Oev8_CmdResp_TradingListItemProviding {
+  // 고객별 제공수량.
+  map<string, uint64> qty_per_cust = 1;
+}
+
+message Oev8_CmdResp_TradingCountItemProviding {
+  uint64 count = 1;
+}
+
+message Oev8_CmdResp_TradingListOrderItem {
+  string order_id = 1;
+  string cust_id = 2;
+  OrderSide order_side = 3;
+  OrderType order_type = 4;
+  OrderOption order_option = 5;
+  uint64 qty = 6;
+  string price = 7;
+  bool fulfilled = 8;
+  bool cancelled = 9;
+}
+
+message Oev8_CmdResp_TradingListOrder {
+  repeated Oev8_CmdResp_TradingListOrderItem orders = 1;
+}
+
+message Oev8_CmdResp_TradingCountOrder {
+  uint64 count = 1;
+}
+
+message Oev8_CmdResp_TradingListMatchItem {
+  string match_id = 1;
+  uint64 qty = 2;
+  string price = 3;
+  string making_order_id = 4;
+  string taking_order_id = 5;
+}
+
+message Oev8_CmdResp_TradingListMatch {
+  repeated Oev8_CmdResp_TradingListMatchItem matches = 1;
+}
+
+message Oev8_CmdResp_TradingCountMatch {
+  uint64 count = 1;
+}
+
+message Oev8_CmdResp_TradingListPrice {
+  repeated string prices = 1;
+}
+
+message Oev8_CmdResp_TradingCountPrice {
+  uint64 count = 1;
+}
+
+message Oev8_CmdResp_TradingListOrderByPrice {
+  // 주문ID별 제시된 수량.
+  map<string, uint64> qty_per_order_id = 1;
+}
+
+message Oev8_CmdResp_TradingCountOrderByPrice {
+  uint64 count = 1;
+}
+
+message Oev8_CmdResp_TradingBidBuying {
+  // Buy-Bidding의 응답.
+  string ord_id = 1;  // 주문ID.
+}
+
+message Oev8_CmdResp_TradingAskSelling {
+  // Sell-Asking의 응답.
+  string ord_id = 1;  // 주문ID.
+}
+
+message Oev8_CommandResponse {// 커맨드의 응답.
+  // 요청의 cmd_type, cmd_uuid을 그대로 복사.
+  Oev8_CmdType cmd_type = 1;
+  bytes cmd_uuid = 2;
+  // 처리시 할당 받은 seq_num 값.
+  string seq_num = 3;
+  // 에러가 있을 때 빈 문자열이 아님: JSON.
+  string err_str = 4;
+  oneof resp_body {
+    Oev8_CmdResp_BalanceGet balance_get = 10;
+    Oev8_CmdResp_BalanceDeposit balance_deposit = 11;
+    Oev8_CmdResp_BalanceWithdraw balance_withdraw = 12;
+    Oev8_CmdResp_BalanceXferFrom balance_xfer_from = 13;
+    Oev8_CmdResp_BalanceXferTo balance_xfer_to = 14;
+    Oev8_CmdResp_BalanceCvtXferTo balance_cvt_xfer_to = 15;
+    Oev8_CmdResp_ItemCountGet item_count_get = 16;
+    Oev8_CmdResp_ItemCountInc item_count_inc = 17;
+    Oev8_CmdResp_ItemCountDec item_count_dec = 18;
+    Oev8_CmdResp_ItemCountXferFrom item_count_xfer_from = 19;
+    Oev8_CmdResp_ItemCountXferTo item_count_xfer_to = 20;
+    Oev8_CmdResp_TradingNew trading_new = 21;
+    Oev8_CmdResp_TradingProvideItem trading_provide_item = 22;
+    Oev8_CmdResp_TradingUnprovideItem trading_unprovide_item = 23;
+    Oev8_CmdResp_TradingOrderNew trading_order_new = 24;
+    Oev8_CmdResp_TradingUntil trading_until = 25;
+    Oev8_CmdResp_TradingListId trading_list_id = 26;
+    Oev8_CmdResp_TradingCountId trading_count_id = 27;
+    Oev8_CmdResp_TradingGetInfo trading_get_info = 28;
+    Oev8_CmdResp_TradingListItemProviding trading_list_item_providing = 29;
+    Oev8_CmdResp_TradingCountItemProviding trading_count_item_providing = 30;
+    Oev8_CmdResp_TradingListOrder trading_list_order = 31;
+    Oev8_CmdResp_TradingCountOrder trading_count_order = 32;
+    Oev8_CmdResp_TradingListMatch trading_list_match = 33;
+    Oev8_CmdResp_TradingCountMatch trading_count_match = 34;
+    Oev8_CmdResp_TradingListPrice trading_list_price = 35;
+    Oev8_CmdResp_TradingCountPrice trading_count_price = 36;
+    Oev8_CmdResp_TradingListOrderByPrice trading_list_order_by_price = 37;
+    Oev8_CmdResp_TradingCountOrderByPrice trading_count_order_by_price = 38;
+    Oev8_CmdResp_TradingGetAuctionInfo trading_get_auction_info = 39;
+    Oev8_CmdResp_TradingNewSellingAuction trading_new_selling_auction = 40;
+    Oev8_CmdResp_TradingBidBuying trading_bid_buying = 41;
+    Oev8_CmdResp_TradingNewBuyingAuction trading_new_buying_auction = 42;
+    Oev8_CmdResp_TradingAskSelling trading_ask_selling = 43;
+
+  }
+}
+
+// Evt, EvtCause
+message Oev8_EvtCause_BalanceDeposit_Deposit {//입금.
+  string deposit_req_id = 1;  // DEPRECATED: 현재는 사용하지않음.
+}
+
+message Oev8_EvtCause_BalanceWithdraw_Withdraw {//출금.
+  string withdraw_req_id = 1;  // DEPRECATED: 현재는 사용하지않음.
+}
+
+message Oev8_EvtCause_BalanceXferFrom_Buying {
+  // 구매 주문으로 인한 고객->서비스계정.
+  string trd_id = 1;
+  string ord_id = 2;  // 주문ID.
+}
+
+message Oev8_EvtCause_BalanceXferFrom_BuyingAuction {
+  // 구매 경매 주문으로 인한 고객->서비스계정.
+  string trd_id = 1;
+}
+
+message Oev8_EvtCause_BalanceXferFrom_SecurityDeposit {
+  // 담보금 제시로 인한 고객->서비스계정.
+  string trd_id = 1;
+}
+
+message Oev8_EvtCause_BalanceXferTo_RefundUnmatchedBuying {
+  // 미체결된 구매 주문의 미체결수량만큼 환불: 서비스계정->고객.
+  string trd_id = 1;
+  string ord_id = 2;  // 미체결/부분체결 구매 주문ID.
+}
+
+message Oev8_EvtCause_BalanceXferTo_TradingCancellation {
+  // 거래장터 전체 취소로 인한 환불: 서비스계정->고객.
+  string trd_id = 1;
+}
+
+message Oev8_EvtCause_BalanceCvtXferTo_EarningPrep {
+  // 판매수익을 정산시 이체: 서비스계정->고객.
+  string trd_id = 1;
+}
+
+message Oev8_EvtCause_ItemCountInc {
+  bool ok = 1;
+}
+
+message Oev8_EvtCause_ItemCountDec {
+  bool ok = 1;
+}
+
+message Oev8_EvtCause_ItemCountXferFrom_Selling {
+  string ord_id = 1;
+}
+
+message Oev8_EvtCause_ItemCountXferFrom_SellingAuction {
+  bool ok = 1;
+}
+
+message Oev8_EvtCause_ItemCountXferTo_Buying {
+  // 구매로 인한 아이템 보유 증가.
+  string match_id = 1;  // 체결ID.
+}
+
+message Oev8_EvtCause_TradingOrderCancel_FoK {
+  bool ok = 1;
+}
+
+message Oev8_EvtCause_TradingOrderCancel_IoC {
+  bool ok = 1;
+}
+
+message Oev8_EvtCause_TradingOrderCancel_UserCancel {
+  bool ok = 1;
+}
+
+message Oev8_EvtCause_TradingOrderCancel_NotEnoughBalance {
+  bool ok = 1;
+}
+
+message Oev8_EvtCause_TradingOrderCancel_TimedOut {
+  bool ok = 1;
+}
+
+message Oev8_EvtCause_TradingFinalized_UntilReached {
+  // 정산 완료 시. 사용하지 않음.
+  uint64 utc_timestamp_secs = 1;
+}
+
+message Oev8_Evt_BalanceDeposit {
+  BalanceType balance_type = 1;
+  CurrencyType curr = 2;
+  string cust_id = 3;
+  string amt = 4;  // delta
+  string new_amt = 5;  // 고객의 새 잔고.
+  oneof evt_cause {
+    Oev8_EvtCause_BalanceDeposit_Deposit deposit = 10;
+  }
+}
+
+message Oev8_Evt_BalanceWithdraw {
+  BalanceType balance_type = 1;
+  CurrencyType curr = 2;
+  string cust_id = 3;
+  string amt = 4;  // delta
+  string new_amt = 5;  // 고객의 새 잔고.
+  oneof evt_cause {
+    Oev8_EvtCause_BalanceWithdraw_Withdraw withdraw = 10;
+  }
+}
+
+message Oev8_Evt_BalanceXferFrom {
+  BalanceType balance_type = 1;
+  CurrencyType curr = 2;
+  string cust_id = 3;
+  string amt = 4;  // delta
+  string new_amt = 5;  // 고객의 새 잔고.
+  string new_svc = 6;  // 서비스계정의 새 잔고.
+  oneof evt_cause {
+    Oev8_EvtCause_BalanceXferFrom_Buying buying = 10;
+    Oev8_EvtCause_BalanceXferFrom_SecurityDeposit sec_deposit = 11;
+    Oev8_EvtCause_BalanceXferFrom_BuyingAuction buying_auction = 12;
+  }
+}
+
+message Oev8_Evt_BalanceXferTo {
+  BalanceType balance_type = 1;
+  CurrencyType curr = 2;
+  string cust_id = 3;
+  string amt = 4;  // delta
+  string new_amt = 5;  // 고객의 새 잔고.
+  string new_svc = 6;  // 서비스계정의 새 잔고.
+  oneof evt_cause {
+    Oev8_EvtCause_BalanceXferTo_RefundUnmatchedBuying refund_for_unmatched_buying = 10;
+    Oev8_EvtCause_BalanceXferTo_TradingCancellation trading_cancellation = 11;
+  }
+}
+
+message Oev8_Evt_BalanceCvtXferTo {
+  BalanceType from_balance_type = 1;
+  BalanceType to_balance_type = 2;
+  CurrencyType curr = 3;
+  string cust_id = 4;
+  string amt = 5;  // 변화량
+  string new_amt = 6;  // 고객의 새 잔고
+  string new_svc = 7;  // 서비스계정의 새 잔고
+  oneof evt_cause {
+    Oev8_EvtCause_BalanceCvtXferTo_EarningPrep earning_prep = 10;
+  }
+}
+
+message Oev8_Evt_BalanceDeleteByCurrency {
+  CurrencyType curr = 1;
+}
+
+message Oev8_Evt_BalanceDeleteByCustomer {
+  string cust_id = 1;
+}
+
+message Oev8_Evt_ItemCountInc {
+  string cust_id = 1;
+  string trd_id = 2;
+  uint64 qty = 3;  // delta
+  uint64 new_qty = 4;  // 고객의 새 보유수량
+  oneof evt_cause {
+    Oev8_EvtCause_ItemCountInc item_count_inc = 10;
+  }
+}
+
+message Oev8_Evt_ItemCountDec {
+  string cust_id = 1;
+  string trd_id = 2;
+  uint64 qty = 3; // delta
+  uint64 new_qty = 4;  // 고객의 새 보유수량
+  oneof evt_cause {
+    Oev8_EvtCause_ItemCountDec item_count_dec = 10;
+  }
+}
+
+message Oev8_Evt_ItemCountXferFrom {
+  string cust_id = 1;
+  string trd_id = 2;
+  uint64 qty = 3;  // delta
+  uint64 new_qty = 4;  // 고객의 새 보유수량
+  uint64 new_svc = 5;  // 서비스계정의 새 보유수량
+  oneof evt_cause {
+    Oev8_EvtCause_ItemCountXferFrom_Selling selling = 10;
+    Oev8_EvtCause_ItemCountXferFrom_SellingAuction selling_auction = 11;
+  }
+}
+
+message Oev8_Evt_ItemCountXferTo {
+  string cust_id = 1;
+  string trd_id = 2;
+  uint64 qty = 3;  // delta
+  uint64 new_qty = 4;  // 고객의 새 보유수량
+  uint64 new_svc = 5;  // 서비스계정의 새 보유수량
+  oneof evt_cause {
+    Oev8_EvtCause_ItemCountXferTo_Buying buying = 10;
+  }
+}
+
+message Oev8_Evt_ItemCountDeleteByTrading {
+  string trd_id = 1;
+}
+
+message Oev8_Evt_ItemCountDeleteByCustomer {
+  string cust_id = 1;
+}
+
+message Oev8_Evt_TradingNew {
+  string trd_id = 1;
+}
+
+message Oev8_Evt_TradingResume {
+  string trd_id = 1;
+}
+
+message Oev8_Evt_TradingPause {
+  string trd_id = 1;
+}
+
+message Oev8_Evt_TradingFinalized {
+  string trd_id = 1;
+  oneof evt_cause {
+    Oev8_EvtCause_TradingFinalized_UntilReached until_reached = 10;
+  }
+}
+
+message Oev8_Evt_TradingCancelled {
+  string trd_id = 1;
+}
+
+message Oev8_Evt_TradingEvicted {
+  string trd_id = 1;
+}
+
+message Oev8_Evt_TradingOrderCancelled {
+  string cust_id = 1;
+  string trd_id = 2;
+  string ord_id = 3;  // 취소한 주문ID.
+  string price = 4;   // 주문의 가격.
+  uint64 qty = 5;     // 주문의 전체수량.
+  uint64 remaining_qty = 6;  // 취소 시점의 미체결 수량.
+  oneof evt_cause {
+    Oev8_EvtCause_TradingOrderCancel_FoK fok = 10;
+    Oev8_EvtCause_TradingOrderCancel_IoC ioc = 11;
+    Oev8_EvtCause_TradingOrderCancel_UserCancel user_cancel = 12;
+    Oev8_EvtCause_TradingOrderCancel_NotEnoughBalance not_enough_balance = 13;
+    Oev8_EvtCause_TradingOrderCancel_TimedOut timed_out = 14;
+  }
+}
+
+message Oev8_Evt_TradingOrderMatched {
+  // 주문체결됨.
+
+  string t_cust_id = 1; // taker 고객 ID.
+  string trd_id = 2;
+  string m_ord_id = 3;  // making 주문 ID.
+  string t_ord_id = 4;  // taking 주문 ID.
+  string match_id = 5;  // 체결ID.
+  string price = 6;     // 체결가격.
+  uint64 qty = 7;       // 체결수량.
+}
+
+message Oev8_Evt_TradingProvideItem {
+  string cust_id = 1;
+  string trd_id = 2;
+  uint64 qty = 3;   // delta
+  uint64 new_qty = 4;  // 새로운 해당 고객의 제공 수량 전체.
+}
+
+message Oev8_Evt_TradingUnprovideItem {
+  string cust_id = 1;
+  string trd_id = 2;
+  uint64 qty = 3;  // delta
+  uint64 new_qty = 4;  // 새로운 해당 고객의 제공 수량 전체.
+}
+
+message Oev8_Evt_TradingOrderLimitSell {
+  string cust_id = 1;
+  string trd_id = 2;
+  string ord_id = 3;
+  string price = 4;
+  uint64 qty = 5;
+  OrderOption option = 6;
+}
+
+message Oev8_Evt_TradingOrderLimitBuy {
+  string cust_id = 1;
+  string trd_id = 2;
+  string ord_id = 3;
+  string price = 4;
+  uint64 qty = 5;
+  OrderOption option = 6;
+}
+
+message Oev8_Evt_TradingOrderMarketSell {
+  string cust_id = 1;
+  string trd_id = 2;
+  string ord_id = 3;
+  uint64 qty = 4;
+  OrderOption option = 5;
+}
+
+message Oev8_Evt_TradingOrderMarketBuy {
+  string cust_id = 1;
+  string trd_id = 2;
+  string ord_id = 3;
+  uint64 qty = 4;
+  OrderOption option = 5;
+}
+
+message Oev8_Event {//발생 이벤트.
+  Oev8_EvtType evt_type = 1;
+
+  // 발생 원인의 커맨드 요청의 cmd_uuid, seq_num을 복사.
+  bytes cmd_uuid = 2;
+  string seq_num = 3;
+
+  // 이벤트의 세부 원인.
+  Oev8_EvtCauseType evt_cause_type = 4;
+
+  // 이벤트 본문.
+  oneof evt {
+    Oev8_Evt_BalanceDeposit balance_deposit = 10;
+    Oev8_Evt_BalanceWithdraw balance_withdraw = 11;
+    Oev8_Evt_BalanceXferFrom balance_xfer_from = 12;
+    Oev8_Evt_BalanceXferTo balance_xfer_to = 13;
+    Oev8_Evt_BalanceCvtXferTo balance_cvt_xfer_to = 14;
+    Oev8_Evt_BalanceDeleteByCurrency balance_delete_by_currency = 15;
+    Oev8_Evt_BalanceDeleteByCustomer balance_delete_by_customer = 16;
+    Oev8_Evt_ItemCountInc item_count_inc = 17;
+    Oev8_Evt_ItemCountDec item_count_dec = 18;
+    Oev8_Evt_ItemCountXferFrom item_count_xfer_from = 19;
+    Oev8_Evt_ItemCountXferTo item_count_xfer_to = 20;
+    Oev8_Evt_ItemCountDeleteByTrading item_count_delete_by_trading = 21;
+    Oev8_Evt_ItemCountDeleteByCustomer item_count_delete_by_customer = 22;
+    Oev8_Evt_TradingNew trading_new = 23;
+    Oev8_Evt_TradingResume trading_resume = 24;
+    Oev8_Evt_TradingPause trading_pause = 25;
+    Oev8_Evt_TradingFinalized trading_finalized = 26;
+    Oev8_Evt_TradingCancelled trading_cancelled = 27;
+    Oev8_Evt_TradingEvicted trading_evicted = 28;
+    Oev8_Evt_TradingOrderCancelled trading_order_cancelled = 29;
+    Oev8_Evt_TradingOrderMatched trading_order_matched = 30;
+    Oev8_Evt_TradingProvideItem trading_provide_item = 31;
+    Oev8_Evt_TradingUnprovideItem trading_unprovide_item = 32;
+    Oev8_Evt_TradingOrderLimitSell trading_order_limit_sell = 33;
+    Oev8_Evt_TradingOrderLimitBuy trading_order_limit_buy = 34;
+    Oev8_Evt_TradingOrderMarketSell trading_order_market_sell = 35;
+    Oev8_Evt_TradingOrderMarketBuy trading_order_market_buy = 36;
+  }
+}
+
+// EOF.
